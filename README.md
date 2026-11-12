@@ -59,6 +59,27 @@ const deck = await discoverPresentation("./decks/my-guide");
 const html = await renderSlideDocument(deck, 0, { draft, assetBase: "/files/" });
 ```
 
+### Add, reorder and delete slides
+
+```js
+import { insertSlide, removeSlide, reorderSlides, readFileWithHash } from "@flipbook-md/core";
+
+// Structure writes are guarded by the manifest's hash (or the single file's).
+const { hash } = await readFileWithHash("./decks/my-guide/presentation.yml");
+
+// Writes slides/NN_<type|slide>.slide.md with the next free NN and adds it after the given slide.
+const added = await insertSlide("./decks/my-guide", "slides/01_cover.slide.md", draft, hash);
+
+// Only the manifest's slides: order changes; files are never renamed.
+const order = ["slides/01_cover.slide.md", "slides/03_point.slide.md", added.slideId];
+const { hashes } = await reorderSlides("./decks/my-guide", order, added.hashes["presentation.yml"]);
+
+// Removes the manifest entry, then the file. A deck's last slide can't be removed (LastSlideError).
+await removeSlide("./decks/my-guide", added.slideId, hashes["presentation.yml"]);
+```
+
+In a single-file deck, slides are `---` chunks: inserting adds a chunk, reordering moves chunks and keeps each one's bytes, and slide IDs (`#0`, `#1`, …) follow the new positions.
+
 Only the package entry is public. Deep imports such as `@flipbook-md/core/src/…` are blocked. Type declarations ship in `index.d.ts`.
 
 The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/uminocelo/flipbook-md#write-a-presentation).

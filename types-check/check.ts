@@ -20,6 +20,10 @@ import {
   createDeck,
   readSlide,
   updateSlide,
+  insertSlide,
+  removeSlide,
+  reorderSlides,
+  LastSlideError,
   renderSlideDocument,
   atomicWrite,
   readFileWithHash,
@@ -57,6 +61,12 @@ export async function exercise(): Promise<void> {
   const updated = await updateSlide("decks/talk", "slides/01_cover.slide.md", { ...slide.draft, template: "summary" }, slide.hash);
   const preview: string = await renderSlideDocument(deck, 0, { draft: slide.draft, assetBase: "/files/" });
   void [updated.slideId, preview, slide.locations.template];
+  const added = await insertSlide("decks/talk", null, slide.draft, slide.hash);
+  const order: { hashes: Record<string, string> } = await reorderSlides("decks/talk", [added.slideId], slide.hash);
+  await removeSlide("decks/talk", added.slideId, order.hashes["presentation.yml"]!);
+  const last = new LastSlideError("x");
+  const lastCode: "LAST_SLIDE" = last.code;
+  void lastCode;
   // @ts-expect-error: updateSlide needs the baseHash.
   await updateSlide("decks/talk", "#0", slide.draft);
   const conflict = new FileConflictError("x", null);
