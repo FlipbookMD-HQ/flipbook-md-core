@@ -226,7 +226,14 @@ async function boot() {
     presentation = await response.json();
     document.title = `${presentation.title} · Flipbook MD`;
     titleRoot.textContent = presentation.title;
-    if (pendingRemote) {
+    // ?slide=N (1-based) or the server's startSlide opens on that slide and tells the announcer.
+    const requested = Number(new URLSearchParams(location.search).get("slide") ?? presentation.startSlide ?? NaN);
+    if (Number.isInteger(requested) && requested >= 1) {
+      pendingRemote = null;
+      current = requested - 1;
+      render();
+      publish();
+    } else if (pendingRemote) {
       const message = pendingRemote;
       pendingRemote = null;
       applyRemote(message);

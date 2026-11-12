@@ -7,6 +7,7 @@ import {
   discoverPresentation,
   loadGroup,
   startServer,
+  checkExportDependencies,
   exportCarousel,
   exportVideo,
   evaluateBlueprint,
@@ -55,6 +56,14 @@ export async function exercise(): Promise<void> {
   server.server.close();
   const result: ExportResult = await exportCarousel(deck, { preset: options.preset, outputDir: options.outputDir });
   const video = await exportVideo(deck, { duration: 5 });
+  const controller = new AbortController();
+  const maybe = await exportCarousel(deck, { signal: controller.signal, onProgress: ({ done, total }) => void [done, total] });
+  if ("cancelled" in maybe) void maybe.files;
+  const deps = await checkExportDependencies("video");
+  const install: string | null = deps.installCommand;
+  void install;
+  const live = await startServer(async () => deck, { startSlide: 2 });
+  await live.close();
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
   const error = new BlueprintError(["x"]);
   const created: { path: string } = await createDeck("decks", { name: "talk", title: "Talk", kind: "folder", group: null });
