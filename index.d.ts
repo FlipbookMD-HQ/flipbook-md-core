@@ -341,6 +341,8 @@ export function renderSampleDocument(options?: {
   /** Show this deck's first `count` slides (default 5) with `themeCss` instead of the samples. */
   presentation?: Presentation | null;
   count?: number;
+  /** A parsed group file: one placeholder slide per blueprint page step, with its templates, chrome and canvas. */
+  group?: unknown;
 }): Promise<string>;
 export function checkExportDependencies(format?: "png" | "carousel" | "video"): Promise<ExportDependencies>;
 
@@ -500,6 +502,15 @@ export function atomicWrite(
  * Evaluates an unsaved blueprint (YAML text or parsed object) against a loaded presentation.
  * Never throws: `{ errors }` when the blueprint is invalid, `{ violations }` otherwise.
  */
+/** A group's source under a new name: name, `<from>_` template keys and blueprint template references. */
+export function renamedGroupSource(source: string, from: string, to: string): string;
+/** Copies a built-in or library group into the library as `toName`. Throws KitExistsError on a clash. */
+export function copyGroup(fromRef: { name: string; scope: "builtin" | "library" }, toName: string): Promise<{ hash: string; path: string; source: string }>;
+/** Renames a library group (new file written before the old one is removed). */
+export function renameGroup(ref: { name: string; scope: "library" | "builtin" }, toName: string, baseHash: string): Promise<{ hash: string; path: string; source: string }>;
+/** The deck paths (folders or .slide.md files) whose `group:` is `name`. */
+export function findDecksUsingGroup(name: string, deckPaths: string[]): Promise<string[]>;
+
 export function evaluateDraftBlueprint(presentation: Presentation, blueprintSource: string | unknown): { errors: string[]; violations?: undefined } | { violations: Violation[]; errors?: undefined };
 
 // kits

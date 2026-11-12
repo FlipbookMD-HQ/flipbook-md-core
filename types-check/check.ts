@@ -10,6 +10,8 @@ import {
   checkExportDependencies,
   readKit,
   evaluateDraftBlueprint,
+  copyGroup,
+  findDecksUsingGroup,
   writeKit,
   renderSampleDocument,
   exportCarousel,
@@ -73,6 +75,10 @@ export async function exercise(): Promise<void> {
   void written;
   const patched = await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir: "." }, { patch: { align: "start" } }, null);
   void patched.hash;
+  const copied = await copyGroup({ name: "marvel_content_guide", scope: "builtin" }, "my_kit");
+  void copied.source;
+  void (await findDecksUsingGroup("my_kit", ["deck"])).length;
+  void (await renderSampleDocument({ group: { name: "my_kit" } })).length;
   const draft = evaluateDraftBlueprint(deck, "pages: []");
   if (draft.errors) void draft.errors[0];
   else void draft.violations.length;
