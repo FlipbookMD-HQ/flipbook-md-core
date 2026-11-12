@@ -338,6 +338,9 @@ export function renderSampleDocument(options?: {
   slides?: SampleSlide[];
   assetRoot?: string | null;
   preset?: string;
+  /** Show this deck's first `count` slides (default 5) with `themeCss` instead of the samples. */
+  presentation?: Presentation | null;
+  count?: number;
 }): Promise<string>;
 export function checkExportDependencies(format?: "png" | "carousel" | "video"): Promise<ExportDependencies>;
 
