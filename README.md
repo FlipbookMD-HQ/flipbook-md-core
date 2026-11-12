@@ -86,6 +86,17 @@ await writeKit(talk, { patch: { types: { point: { max_chars: 250 } } } }, (await
 await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir }, { patch: { align: "start" } }, hash);
 ```
 
+### Copy and rename media kits
+
+```js
+import { copyGroup, findDecksUsingGroup, readKit, renameGroup } from "@flipbook-md/core";
+
+await copyGroup({ name: "marvel_content_guide", scope: "builtin" }, "my_kit"); // ~/Documents/flipbook/templates/my_kit.yml
+const { hash } = await readKit({ kind: "group", name: "my_kit", scope: "library" });
+await renameGroup({ name: "my_kit", scope: "library" }, "brand", hash); // my_kit_* templates become brand_*
+console.log(await findDecksUsingGroup("my_kit", ["talks/q3", "intro.slide.md"])); // decks still on the old name
+```
+
 ### Check a draft blueprint
 
 ```js
