@@ -185,7 +185,7 @@ async function sampleGrid(deck, shown, labels, preset, canvas) {
     figures.push(`<figure class="sample" data-sample="${label}"><div class="frame"><div class="canvas"><template shadowrootmode="open">${payload}</template></div></div><figcaption>${label}</figcaption></figure>`);
   }
   const { width, height } = preset;
-  const style = `html,body{margin:0;background:#0006;color:#ccd;font:13px system-ui,sans-serif}.samples{display:flex;flex-wrap:wrap;gap:16px;padding:16px}.sample{margin:0}.frame{width:${width * scale}px;height:${height * scale}px;overflow:hidden;border-radius:6px}.canvas{box-sizing:border-box;width:${width}px;height:${height}px;display:flex;flex-direction:column;background:${colors.bg};transform:scale(${scale});transform-origin:0 0}figcaption{margin-top:6px;text-align:center}`;
+  const style = `html,body{margin:0;background:transparent;color:#ccd;font:13px system-ui,sans-serif}.samples{display:flex;flex-wrap:wrap;gap:16px;padding:16px}.sample{margin:0}.frame{width:${width * scale}px;height:${height * scale}px;overflow:hidden;border-radius:6px}.canvas{box-sizing:border-box;width:${width}px;height:${height}px;display:flex;flex-direction:column;background:${colors.bg};transform:scale(${scale});transform-origin:0 0}figcaption{margin-top:6px;text-align:center}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${style}</style></head><body><div class="samples">${figures.join("")}</div></body></html>`;
 }
 
