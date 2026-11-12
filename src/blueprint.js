@@ -240,6 +240,33 @@ function normalizeRepeat(value, where) {
   throw new Error(`blueprint.yml ${where} has an invalid repeat.`);
 }
 
+/**
+ * Evaluates a blueprint that hasn't been saved against a loaded presentation. Never throws.
+ * Returns `{ errors }` when the blueprint itself is invalid (bad YAML, no pages, an undefined
+ * type, or a template that is neither built in nor in the deck's or group's templates), and
+ * `{ violations }` otherwise. `blueprintSource` is YAML text or an already parsed object.
+ */
+export function evaluateDraftBlueprint(presentation, blueprintSource) {
+  let blueprint;
+  try {
+    const parsed = typeof blueprintSource === "string" ? parseYaml(blueprintSource) : blueprintSource;
+    blueprint = normalizeBlueprint(parsed, presentation?.templates ?? {});
+  } catch (error) {
+    const message = error?.name === "YAMLParseError" ? `blueprint.yml is not valid YAML: ${String(error.message).split("\n")[0]}` : String(error?.message ?? error);
+    return { errors: [message] };
+  }
+  try {
+    // Copies, as the loader saw them before a blueprint assigned templates.
+    const slides = (presentation?.slides ?? []).map((slide) => {
+      const basis = slide[DRAFT_BASIS] ?? { markdown: "", template: slide.template, templateExplicit: true };
+      return { ...slide, markdown: basis.markdown, template: basis.template, templateExplicit: basis.templateExplicit };
+    });
+    return { violations: evaluateBlueprintDetailed({ ...presentation, slides }, blueprint) };
+  } catch (error) {
+    return { errors: [String(error?.message ?? error)] };
+  }
+}
+
 /** Blueprint violations as strings: exactly what `flipbook check` prints. */
 export function evaluateBlueprint(deck, blueprint) {
   return evaluateBlueprintDetailed(deck, blueprint).map((violation) => violation.message);
@@ -342,7 +369,17 @@ function walk(slides, pages, slideIndex, stepIndex, pairs) {
  * By default a violation throws BlueprintError; with `{ blueprint: "evaluate" }` the structured
  * violations are left on `deck.violations` instead.
  */
+// What a slide was before any blueprint touched it, kept off the enumerable shape (so it never
+// reaches JSON) for evaluateDraftBlueprint.
+const DRAFT_BASIS = Symbol("flipbook.draftBasis");
+
 export async function applyBlueprint(deck, options = {}) {
+  for (const slide of deck.slides) {
+    Object.defineProperty(slide, DRAFT_BASIS, {
+      value: { markdown: slide.markdown ?? "", template: slide.template, templateExplicit: Boolean(slide.templateExplicit) },
+      enumerable: false
+    });
+  }
   let blueprint = await loadBlueprint(deck.root, deck.templates ?? {});
   if (!blueprint && deck.groupBlueprint) {
     blueprint = normalizeBlueprint(deck.groupBlueprint, deck.templates ?? {});

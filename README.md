@@ -86,6 +86,17 @@ await writeKit(talk, { patch: { types: { point: { max_chars: 250 } } } }, (await
 await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir }, { patch: { align: "start" } }, hash);
 ```
 
+### Check a draft blueprint
+
+```js
+import { evaluateDraftBlueprint, loadPresentation } from "@flipbook-md/core";
+
+const { presentation } = await loadPresentation("talk", { blueprint: "evaluate" });
+const result = evaluateDraftBlueprint(presentation, "pages:\n  - type: cover\ntypes:\n  cover: {}\n");
+if (result.errors) console.log("The blueprint itself is invalid:", result.errors);
+else console.log(result.violations); // the slides that would fail
+```
+
 ### Export with progress and cancel
 
 ```js
