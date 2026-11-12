@@ -3,11 +3,9 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { spawnSync } from "node:child_process";
 import { loadBlueprint, measureMarkdown, pageTypeFromFilename } from "../src/blueprint.js";
 import { loadDirectoryProject, loadSingleFile } from "../src/presentation.js";
 
-const bin = path.resolve("bin/flipbook.js");
 const talkBlueprint = `pages:
   - type: cover
   - type: point
