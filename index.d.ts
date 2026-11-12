@@ -519,8 +519,18 @@ export interface KitRead {
 export function resolveKitPath(ref: KitRef): string;
 export function parseKit(ref: KitRef, source: string): Promise<unknown>;
 export function readKit(ref: KitRef): Promise<KitRead>;
-/** `baseHash` null creates. Throws KitExistsError, KitInvalidError, ReservedNameError, BuiltInReadOnlyError, FileConflictError, ValidationError. */
-export function writeKit(ref: KitRef, change: { source: string }, baseHash: string | null): Promise<{ hash: string; path: string }>;
+/**
+ * `source` replaces the file; `patch` is an RFC 7386 merge patch applied through the yaml
+ * Document API (comments, key order and quoting survive; new keys go last; null deletes). A deck
+ * `templates.yml` patch addresses the template named by `ref.name` (null removes it) and creates
+ * the file when missing. `baseHash` null creates. Throws KitExistsError, KitInvalidError,
+ * ReservedNameError, BuiltInReadOnlyError, FileConflictError, KitNotFoundError, ValidationError.
+ */
+export function writeKit(
+  ref: KitRef,
+  change: { source: string } | { patch: Record<string, unknown> | null },
+  baseHash: string | null
+): Promise<{ hash: string; path: string }>;
 export function sampleThemeCss(css: string, root: string | null): Promise<string>;
 export class KitExistsError extends Error {
   code: "KIT_EXISTS";

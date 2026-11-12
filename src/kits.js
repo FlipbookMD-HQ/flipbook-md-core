@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parse as parseYaml } from "yaml";
+import { isMap, isScalar, parse as parseYaml, parseDocument } from "yaml";
 import { normalizeBlueprint } from "./blueprint.js";
 import { normalizeGroup } from "./groups.js";
 import { TEMPLATES, flipbookHome, libraryRoot, parsePlacement, parseTemplatesDocument } from "./templates.js";
@@ -47,7 +47,14 @@ function check(ref) {
   if (typeof name !== "string" || !NAMES[kind].test(name)) {
     throw new ValidationError(`"${name}" is not a valid ${kind} name. Use lowercase letters, digits, - or _.`, { field: "name" });
   }
-  if (kind === "template" && TEMPLATES[name]) throw new ReservedNameError(name);
+  if (kind === "template") checkTemplateName(name);
+}
+
+function checkTemplateName(name) {
+  if (typeof name !== "string" || !NAMES.template.test(name)) {
+    throw new ValidationError(`"${name}" is not a valid template name. Use lowercase letters, digits, - or _.`, { field: "name" });
+  }
+  if (TEMPLATES[name]) throw new ReservedNameError(name);
 }
 
 /**
@@ -156,6 +163,52 @@ export async function readKit(ref) {
   return { source: read.text, parsed, hash: read.hash, builtIn: ref.scope === "builtin", path: file, invalid };
 }
 
+// Re-serialization options that reproduce core's and typical hand-written kits byte for byte.
+const YAML_OUTPUT = { flowCollectionPadding: false, lineWidth: 0 };
+
+const plainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+
+/** Applies an RFC 7386 merge patch to the node at `at`, keeping comments, order and scalar style. */
+function applyPatch(doc, at, patch) {
+  for (const [key, value] of Object.entries(patch)) {
+    const where = [...at, key];
+    if (value === null) {
+      doc.deleteIn(where);
+      continue;
+    }
+    const node = doc.getIn(where, true);
+    if (plainObject(value) && isMap(node)) {
+      applyPatch(doc, where, value);
+    } else if (isScalar(node) && (value === null || typeof value !== "object")) {
+      node.value = value; // Keeps the scalar's quoting and any comment on it.
+    } else {
+      doc.setIn(where, doc.createNode(value)); // A new key goes at the end of its map.
+    }
+  }
+}
+
+/**
+ * The source after a merge patch. Deck `templates.yml` refs address one template by name
+ * (`templates.yml#<name>`); a `null` patch there removes that template.
+ */
+function patchedSource(ref, source, patch) {
+  const doc = parseDocument(source);
+  if (doc.errors.length) throw new KitInvalidError(`Not valid YAML: ${doc.errors[0].message.split("\n")[0]}`);
+  const keyed = ref.kind === "template" && ref.scope === "deck";
+  if (!keyed && !plainObject(patch)) throw new ValidationError("A patch must be an object.", { field: "patch" });
+  if (doc.contents == null) doc.contents = doc.createNode({});
+  if (!isMap(doc.contents)) throw new KitInvalidError("The kit file must contain a YAML mapping.");
+  if (keyed) {
+    if (patch === null) doc.deleteIn([ref.name]);
+    else if (!plainObject(patch)) throw new ValidationError("A patch must be an object or null.", { field: "patch" });
+    else if (isMap(doc.getIn([ref.name], true))) applyPatch(doc, [ref.name], patch);
+    else doc.setIn([ref.name], doc.createNode(patch));
+  } else {
+    applyPatch(doc, [], patch);
+  }
+  return doc.toString(YAML_OUTPUT);
+}
+
 /**
  * Validates and atomically writes a kit. `baseHash` null creates (an existing file throws
  * KitExistsError); otherwise it must match the file's current hash (FileConflictError).
@@ -165,9 +218,29 @@ export async function readKit(ref) {
 export async function writeKit(ref, change, baseHash) {
   if (ref?.scope === "builtin") throw new BuiltInReadOnlyError(resolveKitPath(ref));
   const file = resolveKitPath(ref);
-  if (!change || typeof change !== "object") throw new ValidationError("writeKit needs { source }.");
-  if ("patch" in change) throw new ValidationError("Patch edits are not supported yet; send source.", { field: "patch" });
-  const { source } = change;
+  if (!change || typeof change !== "object") throw new ValidationError("writeKit needs { source } or { patch }.");
+  let source = change.source;
+  if ("patch" in change) {
+    if (ref.kind === "theme") throw new ValidationError("Themes are CSS; send source, not patch.", { field: "patch" });
+    if (ref.kind === "template" && ref.scope === "deck") checkTemplateName(ref.name);
+    let current = "";
+    try {
+      current = await fs.readFile(file, "utf8");
+    } catch (error) {
+      // Only a deck's templates.yml may be created by a patch.
+      if (error.code !== "ENOENT" || !(ref.kind === "template" && ref.scope === "deck")) {
+        if (error.code === "ENOENT") throw new KitNotFoundError(ref.name);
+        throw error;
+      }
+    }
+    source = patchedSource(ref, current, change.patch);
+    if (source === current && baseHash !== null) {
+      // Nothing changed: leave the file alone, but still refuse a stale hash.
+      const { hash } = await readFileWithHash(file);
+      if (hash !== baseHash) throw new FileConflictError(file, hash);
+      return { hash, path: file };
+    }
+  }
   await parseKit(ref, source);
   await fs.mkdir(path.dirname(file), { recursive: true });
   try {
