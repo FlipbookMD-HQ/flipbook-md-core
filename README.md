@@ -59,6 +59,21 @@ const deck = await discoverPresentation("./decks/my-guide");
 const html = await renderSlideDocument(deck, 0, { draft, assetBase: "/files/" });
 ```
 
+### Check against the blueprint without throwing
+
+```js
+import { loadPresentation } from "@flipbook-md/core";
+
+// Violations come back as data (the CLI still throws and prints `message`).
+// An unsaved draft can be applied in memory first.
+const { presentation, violations } = await loadPresentation("./decks/my-guide", {
+  draft: { slideId: "slides/02_point.slide.md", draft }
+});
+// violations: [{ source: "slides/02_point.slide.md", code: "MAX_CHARS", message: "slides/02_point.slide.md: visible text is 412 characters; maximum is 250." }]
+```
+
+Codes: `ORDER`, `MISSING_TYPE`, `TEMPLATE`, `MAX_CHARS`, `MAX_ITEMS`, `REQUIRED`, `NOT_ALLOWED`. A deck's own `blueprint.yml` wins over its group's.
+
 ### Add, reorder and delete slides
 
 ```js
