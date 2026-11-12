@@ -496,6 +496,12 @@ export function atomicWrite(
   options: { baseHash: string | null; roots: string[] }
 ): Promise<{ hash: string }>;
 
+/**
+ * Evaluates an unsaved blueprint (YAML text or parsed object) against a loaded presentation.
+ * Never throws: `{ errors }` when the blueprint is invalid, `{ violations }` otherwise.
+ */
+export function evaluateDraftBlueprint(presentation: Presentation, blueprintSource: string | unknown): { errors: string[]; violations?: undefined } | { violations: Violation[]; errors?: undefined };
+
 // kits
 export type KitKind = "theme" | "template" | "blueprint" | "group";
 export interface KitRef {

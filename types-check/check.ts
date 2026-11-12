@@ -9,6 +9,7 @@ import {
   startServer,
   checkExportDependencies,
   readKit,
+  evaluateDraftBlueprint,
   writeKit,
   renderSampleDocument,
   exportCarousel,
@@ -72,6 +73,9 @@ export async function exercise(): Promise<void> {
   void written;
   const patched = await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir: "." }, { patch: { align: "start" } }, null);
   void patched.hash;
+  const draft = evaluateDraftBlueprint(deck, "pages: []");
+  if (draft.errors) void draft.errors[0];
+  else void draft.violations.length;
   const sample: string = await renderSampleDocument({ themeCss: kit.source, canvas: "paper" });
   void sample;
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
