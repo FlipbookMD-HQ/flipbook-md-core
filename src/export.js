@@ -7,6 +7,9 @@ import { inlinePresentationFiles } from "./attachments.js";
 import { libraryRoot, templateAreaCss } from "./templates.js";
 import { bandHtml, counterHtml, counterNumbers, exportOrnament, parseChrome, surfaceCss } from "./chrome.js";
 import { renderDraftSlide } from "./presentation.js";
+import { normalizeBlueprint } from "./blueprint.js";
+import { normalizeGroup } from "./groups.js";
+import { placeholderMarkdown, rulesFor, titleCase } from "./internal/placeholders.js";
 import { ValidationError } from "./writer.js";
 
 // `scale` multiplies the export type and spacing, so short and tall images keep a readable layout.
@@ -146,10 +149,13 @@ function sampleTemplateFor(sample, templates) {
  * other local references are dropped. `slides` replaces the samples (`{ markdown, template?, role? }`).
  * `presentation` instead shows that loaded deck's first `count` slides with `themeCss` in place
  * of its own theme (its templates, chrome, canvas and files are kept; url()s resolve in its root).
+ * `group` (a parsed group file) instead shows one placeholder slide per blueprint page step, each
+ * typed so it takes its type's template, with the group's templates, chrome and canvas.
  */
-export async function renderSampleDocument({ themeCss = "", templates = {}, chrome = null, canvas = "midnight", slides = SAMPLE_SLIDES, assetRoot = null, preset: presetName = "instagram", presentation = null, count = 5 } = {}) {
+export async function renderSampleDocument({ themeCss = "", templates = {}, chrome = null, canvas = "midnight", slides = SAMPLE_SLIDES, assetRoot = null, preset: presetName = "instagram", presentation = null, count = 5, group = null } = {}) {
   const preset = PRESETS[presetName];
   if (!preset) throw new ValidationError(`Unknown preset "${presetName}".`, { field: "preset" });
+  if (group) return groupSample(group, { themeCss, assetRoot, preset });
   if (presentation) {
     const deck = { ...presentation, themeCss: scopeThemeCss(await sampleThemeCss(themeCss, presentation.root)) };
     const shown = deck.slides.slice(0, Math.max(1, count));
@@ -173,6 +179,35 @@ export async function renderSampleDocument({ themeCss = "", templates = {}, chro
     deck.slides[index] = await renderDraftSlide(deck, index, { markdown: sample.markdown, ...(template ? { template } : {}) });
   }
   return sampleGrid(deck, deck.slides, slides.map((sample, index) => sample.role ?? `slide ${index + 1}`), preset, canvas);
+}
+
+async function groupSample(raw, { themeCss, assetRoot, preset }) {
+  let group;
+  let blueprint;
+  try {
+    group = normalizeGroup(raw, String(raw?.name ?? ""));
+    blueprint = normalizeBlueprint(group.blueprint, group.templates);
+  } catch (error) {
+    throw new ValidationError(error.message, { code: "KIT_INVALID" });
+  }
+  const root = assetRoot ?? path.join(libraryRoot(), "themes");
+  const steps = blueprint.pages.map((step) => step.type ?? step.any[0]);
+  const deck = {
+    title: group.name,
+    theme: group.canvas,
+    themeCss: scopeThemeCss(await sampleThemeCss(themeCss, root)),
+    root,
+    sourcePath: null,
+    templates: group.templates,
+    blueprint,
+    chrome: group.chrome,
+    slides: steps.map((_, index) => ({ index, source: `sample ${index + 1}`, title: "", template: "flow", html: "" }))
+  };
+  for (const [index, type] of steps.entries()) {
+    const markdown = placeholderMarkdown(index === 0 ? "Sample deck" : titleCase(type), rulesFor(blueprint, type));
+    deck.slides[index] = await renderDraftSlide(deck, index, { markdown, type });
+  }
+  return sampleGrid(deck, deck.slides, steps, preset, group.canvas);
 }
 
 async function sampleGrid(deck, shown, labels, preset, canvas) {
