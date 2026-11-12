@@ -240,7 +240,19 @@ function normalizeRepeat(value, where) {
   throw new Error(`blueprint.yml ${where} has an invalid repeat.`);
 }
 
+/** Blueprint violations as strings: exactly what `flipbook check` prints. */
 export function evaluateBlueprint(deck, blueprint) {
+  return evaluateBlueprintDetailed(deck, blueprint).map((violation) => violation.message);
+}
+
+const violation = (source, code, message) => ({ source, code, message });
+
+/**
+ * Blueprint violations as `{ source, code, message }`. `source` is the slide's source (a manifest
+ * path, or "slide N" in a single file), or "deck" when the deck ends early. Applies each blueprint
+ * type's template to slides that don't set one, like the loader does.
+ */
+export function evaluateBlueprintDetailed(deck, blueprint) {
   const sequence = matchPages(deck.slides, blueprint.pages);
   if (!sequence.ok) return sequence.violations;
   const violations = [];
@@ -248,7 +260,7 @@ export function evaluateBlueprint(deck, blueprint) {
     const rules = blueprint.types[slide.type];
     if (rules.template) {
       if (slide.templateExplicit && slide.template !== rules.template) {
-        violations.push(`${slide.source}: template is ${slide.template}; blueprint type ${slide.type} requires ${rules.template}.`);
+        violations.push(violation(slide.source, "TEMPLATE", `${slide.source}: template is ${slide.template}; blueprint type ${slide.type} requires ${rules.template}.`));
       } else if (!slide.templateExplicit) {
         slide.template = rules.template;
       }
@@ -260,17 +272,17 @@ export function evaluateBlueprint(deck, blueprint) {
     const require = step.require ?? rules.require;
     const measured = measureMarkdown(slide.markdown ?? "");
     if (maxChars != null && measured.chars > maxChars) {
-      violations.push(`${slide.source}: visible text is ${measured.chars} characters; maximum is ${maxChars}.`);
+      violations.push(violation(slide.source, "MAX_CHARS", `${slide.source}: visible text is ${measured.chars} characters; maximum is ${maxChars}.`));
     }
     if (maxItems != null && measured.items > maxItems) {
-      violations.push(`${slide.source}: lists have ${measured.items} items; maximum is ${maxItems}.`);
+      violations.push(violation(slide.source, "MAX_ITEMS", `${slide.source}: lists have ${measured.items} items; maximum is ${maxItems}.`));
     }
     for (const kind of require ?? []) {
-      if (!measured.kinds.includes(kind)) violations.push(`${slide.source}: ${kind} is required.`);
+      if (!measured.kinds.includes(kind)) violations.push(violation(slide.source, "REQUIRED", `${slide.source}: ${kind} is required.`));
     }
     for (const kind of measured.kinds) {
       if ((allow && !allow.includes(kind)) || (forbid && forbid.includes(kind))) {
-        violations.push(`${slide.source}: ${kind} is not allowed.`);
+        violations.push(violation(slide.source, "NOT_ALLOWED", `${slide.source}: ${kind} is not allowed.`));
       }
     }
   }
@@ -297,7 +309,7 @@ function walk(slides, pages, slideIndex, stepIndex, pairs) {
       ok: false,
       violations: slides.slice(slideIndex).map((slide) => {
         const found = slide.type ? `type ${slide.type}` : "no page type";
-        return `${slide.source}: unexpected slide (${found}) after the blueprint pages.`;
+        return violation(slide.source, "ORDER", `${slide.source}: unexpected slide (${found}) after the blueprint pages.`);
       })
     };
   }
@@ -315,25 +327,29 @@ function walk(slides, pages, slideIndex, stepIndex, pairs) {
 
   const here = slides[slideIndex];
   const label = stepLabel(step);
-  if (!here) return { ok: false, violations: [`blueprint.yml: expected ${label} but the deck ended.`] };
-  if (!here.type) return { ok: false, violations: [`${here.source}: slide has no page type. Expected ${label}.`] };
+  if (!here) return { ok: false, violations: [violation("deck", "ORDER", `blueprint.yml: expected ${label} but the deck ended.`)] };
+  if (!here.type) return { ok: false, violations: [violation(here.source, "MISSING_TYPE", `${here.source}: slide has no page type. Expected ${label}.`)] };
   const run = slides.slice(slideIndex).findIndex((slide) => !slideMatches(slide, step));
   const count = run === -1 ? slides.length - slideIndex : run;
   if (slideMatches(here, step) && count < step.repeat.min) {
-    return { ok: false, violations: [`${here.source}: expected at least ${step.repeat.min} ${label} slide(s), found ${count}.`] };
+    return { ok: false, violations: [violation(here.source, "ORDER", `${here.source}: expected at least ${step.repeat.min} ${label} slide(s), found ${count}.`)] };
   }
-  return { ok: false, violations: [`${here.source}: expected ${label}, found ${here.type}.`] };
+  return { ok: false, violations: [violation(here.source, "ORDER", `${here.source}: expected ${label}, found ${here.type}.`)] };
 }
 
-export async function applyBlueprint(deck) {
+/**
+ * Loads the deck's blueprint (its own blueprint.yml wins over the group's) and checks the deck.
+ * By default a violation throws BlueprintError; with `{ blueprint: "evaluate" }` the structured
+ * violations are left on `deck.violations` instead.
+ */
+export async function applyBlueprint(deck, options = {}) {
   let blueprint = await loadBlueprint(deck.root, deck.templates ?? {});
   if (!blueprint && deck.groupBlueprint) {
     blueprint = normalizeBlueprint(deck.groupBlueprint, deck.templates ?? {});
   }
-  if (blueprint) {
-    const violations = evaluateBlueprint(deck, blueprint);
-    if (violations.length) throw new BlueprintError(violations);
-  }
+  const violations = blueprint ? evaluateBlueprintDetailed(deck, blueprint) : [];
+  if (options.blueprint === "evaluate") deck.violations = violations;
+  else if (violations.length) throw new BlueprintError(violations.map((item) => item.message));
   for (const slide of deck.slides) {
     const record = deck.templates?.[slide.template];
     slide.layout = record?.layout ?? null;
