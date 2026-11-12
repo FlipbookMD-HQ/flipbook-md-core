@@ -23,11 +23,12 @@ export class BuiltInReadOnlyError extends Error {
 }
 
 export class ValidationError extends Error {
-  constructor(message, { code = "VALIDATION_FAILED", path: file, fields } = {}) {
+  constructor(message, { code = "VALIDATION_FAILED", path: file, fields, field } = {}) {
     super(message);
     this.code = code;
     if (file) this.path = file;
     if (fields) this.fields = fields;
+    if (field) this.field = field;
   }
 }
 
