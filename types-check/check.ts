@@ -18,6 +18,9 @@ import {
   renderExportDocument,
   addSavedTemplate,
   createDeck,
+  readSlide,
+  updateSlide,
+  renderSlideDocument,
   atomicWrite,
   readFileWithHash,
   FileConflictError,
@@ -50,6 +53,12 @@ export async function exercise(): Promise<void> {
   const created: { path: string } = await createDeck("decks", { name: "talk", title: "Talk", kind: "folder", group: null });
   const read = await readFileWithHash(created.path);
   await atomicWrite(created.path, read.text, { baseHash: read.hash, roots: ["decks"] });
+  const slide = await readSlide("decks/talk", "slides/01_cover.slide.md");
+  const saved = await updateSlide("decks/talk", "slides/01_cover.slide.md", { ...slide.draft, template: "summary" }, slide.hash);
+  const preview: string = await renderSlideDocument(deck, 0, { draft: slide.draft, assetBase: "/files/" });
+  void [saved.slideId, preview, slide.locations.template];
+  // @ts-expect-error: updateSlide needs the baseHash.
+  await updateSlide("decks/talk", "#0", slide.draft);
   const conflict = new FileConflictError("x", null);
   void conflict.currentHash;
   // @ts-expect-error: atomicWrite needs a baseHash.

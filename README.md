@@ -43,6 +43,22 @@ await atomicWrite(`${path}/slides/01_cover.slide.md`, text.replace("Guide", "Fie
 
 `atomicWrite` refuses files outside `roots`, refuses core's built-in `library/` (`BuiltInReadOnlyError`), and throws `FileConflictError` when the file changed since you read it. Each typed error has a `code` such as `FILE_CONFLICT` or `DECK_EXISTS`.
 
+### Edit slides
+
+```js
+import { readSlide, updateSlide, renderSlideDocument, discoverPresentation } from "@flipbook-md/core";
+
+// Folder decks: the manifest path is the slide ID. Single-file decks: "#0", "#1", …
+const { draft, locations, hash } = await readSlide("./decks/my-guide", "slides/01_cover.slide.md");
+
+// Only changed fields are written, where they were found. Unchanged files stay byte-for-byte identical.
+await updateSlide("./decks/my-guide", "slides/01_cover.slide.md", { ...draft, template: "summary" }, hash);
+
+// A script-free preview document (declarative shadow DOM), optionally for an unsaved draft.
+const deck = await discoverPresentation("./decks/my-guide");
+const html = await renderSlideDocument(deck, 0, { draft, assetBase: "/files/" });
+```
+
 Only the package entry is public. Deep imports such as `@flipbook-md/core/src/…` are blocked. Type declarations ship in `index.d.ts`.
 
 The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/uminocelo/flipbook-md#write-a-presentation).

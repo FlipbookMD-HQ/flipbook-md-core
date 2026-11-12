@@ -255,6 +255,11 @@ export function resolveExportOptions(config: Configuration, cli?: Partial<{
 
 // export
 export const PRESETS: Record<PresetName, Preset>;
+export function renderSlideDocument(
+  presentation: Presentation,
+  index: number,
+  options?: { draft?: SlideDraft | null; assetBase?: string | null; preset?: PresetName }
+): Promise<string>;
 export function renderExportDocument(presentation: Presentation, slide: Slide, index: number, preset: Preset): Promise<string>;
 export function exportCarousel(presentation: Presentation, options?: { preset?: string; outputDir?: string }): Promise<ExportResult>;
 export function exportVideo(presentation: Presentation, options?: {
@@ -271,10 +276,44 @@ export function loadGroup(name: string): Promise<Group>;
 export function normalizeGroup(parsed: unknown, key: string): Group;
 
 // presentation
+export function renderDraftSlide(presentation: Presentation, index: number, draft: SlideDraft): Promise<Slide>;
 export function extractNotes(markdown: string, frontmatterNotes?: unknown): { body: string; notes: string };
 export function loadSingleFile(filePath: string): Promise<Presentation>;
 export function loadDirectoryProject(projectPath: string): Promise<Presentation>;
 export function discoverPresentation(inputPath?: string): Promise<Presentation>;
+
+// slides (US-3)
+export interface SlideDraft {
+  /** The body without directive comments, LF line endings. */
+  markdown: string;
+  template: string | null;
+  type: string | null;
+  notes: string;
+  /** The frontmatter title; null means the first # heading is the title. */
+  title: string | null;
+  /** Directive comments core doesn't model (eyebrow…), passed through. */
+  directives: Record<string, string>;
+}
+export type FieldLocation = "frontmatter" | "comment" | "filename" | null;
+export interface SlideLocations {
+  template: FieldLocation;
+  type: FieldLocation;
+  title: FieldLocation;
+  notes: FieldLocation;
+  directives: Record<string, FieldLocation>;
+}
+/** Folder decks: the manifest path ("slides/02_point.slide.md"). Single-file decks: "#<0-based index>". */
+export type SlideId = string;
+export function readSlide(
+  deckPath: string,
+  slideId: SlideId
+): Promise<{ draft: SlideDraft; locations: SlideLocations; hash: string; file: string; index: number }>;
+export function updateSlide(
+  deckPath: string,
+  slideId: SlideId,
+  draft: SlideDraft,
+  baseHash: string
+): Promise<{ slideId: SlideId; hashes: Record<string, string> }>;
 
 // server
 export function startServer(presentation: Presentation, options?: { host?: string; port?: number }): Promise<ServerInstance>;
@@ -324,7 +363,9 @@ export class BuiltInReadOnlyError extends Error {
   path: string;
 }
 export class ValidationError extends Error {
-  constructor(message: string, options?: { code?: string; path?: string; fields?: Array<{ path: string; message: string }> });
+  constructor(message: string, options?: { code?: string; path?: string; field?: string; fields?: Array<{ path: string; message: string }> });
+  /** The first field at fault, e.g. "template". */
+  field?: string;
   code: "VALIDATION_FAILED" | "PATH_OUTSIDE_ROOT" | "KIT_INVALID" | (string & {});
   path?: string;
   fields?: Array<{ path: string; message: string }>;
