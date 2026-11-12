@@ -146,6 +146,8 @@ export interface ExportResult {
   height: number;
   outputDir: string;
   outputFile?: string;
+  /** Names of the files written in `outputDir`. */
+  files: string[];
   slides?: number;
   duration?: number;
   fps?: number;
@@ -192,6 +194,31 @@ export interface ServerInstance {
   host: string;
   port: number;
   url: string;
+  /** Stops the server and drops open connections. */
+  close(): Promise<void>;
+}
+
+export interface ExportProgress {
+  done: number;
+  total: number;
+}
+export interface ExportHooks {
+  /** Fires after each slide is captured. */
+  onProgress?: (progress: ExportProgress) => void;
+  /** Aborting stops Chromium and ffmpeg; the export resolves with `{ cancelled: true }`. */
+  signal?: AbortSignal;
+}
+export interface ExportCancelledResult {
+  cancelled: true;
+  outputDir: string;
+  /** Files already written (PNG export); a cancelled video leaves none. */
+  files: string[];
+}
+export interface ExportDependencies {
+  ok: boolean;
+  missing: ("chromium" | "ffmpeg")[];
+  /** The command that installs what is missing, or null. */
+  installCommand: string | null;
 }
 
 // attachments
@@ -276,15 +303,23 @@ export function renderSlideDocument(
   options?: { draft?: SlideDraft | null; assetBase?: string | null; preset?: PresetName }
 ): Promise<string>;
 export function renderExportDocument(presentation: Presentation, slide: Slide, index: number, preset: Preset): Promise<string>;
-export function exportCarousel(presentation: Presentation, options?: { preset?: string; outputDir?: string }): Promise<ExportResult>;
-export function exportVideo(presentation: Presentation, options?: {
+type CarouselOptions = { preset?: string; outputDir?: string; onProgress?: ExportHooks["onProgress"] };
+type VideoOptions = {
   preset?: string;
   outputDir?: string;
   duration?: number;
   fps?: number;
   transition?: string;
   transitionDuration?: number;
-}): Promise<ExportResult>;
+  onProgress?: ExportHooks["onProgress"];
+};
+/** Without a `signal` the export can't be cancelled, so it always returns an ExportResult. */
+export function exportCarousel(presentation: Presentation, options?: CarouselOptions & { signal?: undefined }): Promise<ExportResult>;
+export function exportCarousel(presentation: Presentation, options: CarouselOptions & { signal: AbortSignal }): Promise<ExportResult | ExportCancelledResult>;
+export function exportVideo(presentation: Presentation, options?: VideoOptions & { signal?: undefined }): Promise<ExportResult>;
+export function exportVideo(presentation: Presentation, options: VideoOptions & { signal: AbortSignal }): Promise<ExportResult | ExportCancelledResult>;
+/** Chromium for every export; ffmpeg too for video. */
+export function checkExportDependencies(format?: "png" | "carousel" | "video"): Promise<ExportDependencies>;
 
 // groups
 export function loadGroup(name: string): Promise<Group>;
@@ -354,7 +389,14 @@ export function removeSlide(deckPath: string, slideId: SlideId, baseHash: string
 export function reorderSlides(deckPath: string, slideIds: SlideId[], baseHash: string): Promise<{ hashes: Record<string, string> }>;
 
 // server
-export function startServer(presentation: Presentation, options?: { host?: string; port?: number }): Promise<ServerInstance>;
+/**
+ * `source` may be a function, called per request, so saved edits show after a player reload.
+ * `startSlide` (1-based) opens the player there; `?slide=N` does the same per tab.
+ */
+export function startServer(
+  source: Presentation | (() => Presentation | Promise<Presentation>),
+  options?: { host?: string; port?: number; startSlide?: number | null }
+): Promise<ServerInstance>;
 
 // templates
 export const DEFAULT_TEMPLATE: "flow";

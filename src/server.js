@@ -32,11 +32,27 @@ function send(res, status, body, contentType = "text/plain; charset=utf-8", head
   res.end(body);
 }
 
-export async function startServer(presentation, { host = "127.0.0.1", port = 0 } = {}) {
+/**
+ * Serves the player and announcer for a presentation on a loopback port.
+ * `source` is a presentation, or a function returning one (called per request, so a host such
+ * as Studio can serve saved edits after a reload). `startSlide` (1-based) opens the player there;
+ * a `?slide=N` query does the same per tab. Returns `{ server, host, port, url, close() }`.
+ */
+export async function startServer(source, { host = "127.0.0.1", port = 0, startSlide = null } = {}) {
+  const current = async () => (typeof source === "function" ? await source() : source);
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
     if (req.method !== "GET" && req.method !== "HEAD") {
       return send(res, 405, "Method not allowed");
+    }
+    const needsDeck = ["/api/presentation", "/templates.css", "/presentation.css"].includes(url.pathname) || url.pathname.startsWith("/presentation-file/");
+    let presentation = null;
+    if (needsDeck) {
+      try {
+        presentation = await current();
+      } catch (error) {
+        return send(res, 500, `Could not load the presentation: ${error.message}`);
+      }
     }
 
     if (url.pathname === "/api/presentation") {
@@ -45,6 +61,7 @@ export async function startServer(presentation, { host = "127.0.0.1", port = 0 }
       return send(res, 200, JSON.stringify({
         title: presentation.title,
         theme: presentation.theme,
+        startSlide: Number.isInteger(startSlide) && startSlide >= 1 ? startSlide : null,
         group: presentation.group ?? null,
         style: presentation.style ?? null,
         chromeHtml: presentation.chrome ? {
@@ -128,6 +145,10 @@ export async function startServer(presentation, { host = "127.0.0.1", port = 0 }
     server,
     host,
     port: address.port,
-    url: `http://${host}:${address.port}`
+    url: `http://${host}:${address.port}`,
+    close: () => new Promise((resolve) => {
+      server.close(() => resolve());
+      server.closeAllConnections?.();
+    })
   };
 }
