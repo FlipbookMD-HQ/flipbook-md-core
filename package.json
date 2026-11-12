@@ -1,6 +1,6 @@
 {
   "name": "@flipbook-md/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Load, render, check and export Flipbook MD decks. Shared by the flipbook CLI and Flipbook Studio.",
   "license": "MIT",
   "author": "Celo (https://github.com/uminocelo)",
@@ -9,8 +9,27 @@
     "url": "git+https://github.com/uminocelo/flipbook-md-core.git"
   },
   "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "src/",
+    "public/",
+    "library/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc --noEmit -p types-check/"
   },
   "engines": {
     "node": ">=20"
@@ -18,8 +37,12 @@
   "dependencies": {
     "gray-matter": "^4.0.3",
     "marked": "^15.0.7",
+    "playwright": "^1.55.0",
     "sanitize-html": "^2.14.0",
-    "yaml": "^2.7.0",
-    "playwright": "^1.55.0"
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "typescript": "^5.6.3"
   }
 }

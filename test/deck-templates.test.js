@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { spawnSync } from "node:child_process";
-import { parse as parseYaml } from "yaml";
 import { loadDirectoryProject, loadSingleFile } from "../src/presentation.js";
 import { startServer } from "../src/server.js";
 import { renderExportDocument } from "../src/export.js";
@@ -15,8 +13,6 @@ import {
   parseTemplatesDocument
 } from "../src/templates.js";
 
-const bin = path.resolve("bin/flipbook.js");
-const realLibrary = path.join(os.homedir(), "Documents", "flipbook", "templates");
 const quoteFields = { column: 1, row: 2, width: 2, height: 1, align: "start" };
 
 async function fixture(fn) {
@@ -26,23 +22,6 @@ async function fixture(fn) {
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
-}
-
-async function listing(directory) {
-  try {
-    return (await fs.readdir(directory)).sort();
-  } catch (error) {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-function run(args, cwd, home) {
-  return spawnSync(process.execPath, [bin, ...args], {
-    cwd,
-    encoding: "utf8",
-    env: { ...process.env, FLIPBOOK_HOME: home }
-  });
 }
 
 async function writeProject(dir, { templates, blueprint, slides }) {
