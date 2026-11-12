@@ -7,6 +7,7 @@ export * from "./src/configuration.js";
 export * from "./src/create.js";
 export * from "./src/export.js";
 export * from "./src/groups.js";
+export * from "./src/kits.js";
 export * from "./src/presentation.js";
 export * from "./src/server.js";
 export * from "./src/slides.js";
