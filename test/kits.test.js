@@ -100,7 +100,7 @@ test("built-ins are read-only, reserved and traversal names are refused", async 
   }
   assert.deepEqual(await fs.readdir(home), []);
   await assert.rejects(readKit({ kind: "theme", name: "missing", scope: "library" }), KitNotFoundError);
-  await assert.rejects(writeKit({ kind: "theme", name: "dusk", scope: "library" }, { patch: {} }, null), /Patch edits are not supported/);
+  await assert.rejects(writeKit({ kind: "theme", name: "dusk", scope: "library" }, { patch: {} }, null), /Themes are CSS; send source/);
 });
 
 test("deck scope writes presentation.css, templates.yml and blueprint.yml in the deck folder", async () => {
