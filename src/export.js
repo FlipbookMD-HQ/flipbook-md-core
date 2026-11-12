@@ -164,6 +164,47 @@ function holdFrameRate(slideCount, duration) {
   return `${numerator}/${denominator}`;
 }
 
+async function existing(dir, names) {
+  const present = new Set(await fs.readdir(dir).catch(() => []));
+  return names.filter((name) => present.has(name));
+}
+
+/** Thrown inside an export when its signal aborts; the export resolves with `{ cancelled: true }`. */
+class ExportCancelled extends Error {}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw new ExportCancelled("Export cancelled.");
+}
+
+const INSTALL = {
+  chromium: "npx playwright install chromium",
+  ffmpeg: process.platform === "darwin" ? "brew install ffmpeg" : process.platform === "win32" ? "winget install ffmpeg" : "sudo apt install ffmpeg"
+};
+
+function commandRuns(command, args) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, { stdio: "ignore" });
+    child.on("error", () => resolve(false));
+    child.on("close", (code) => resolve(code === 0));
+  });
+}
+
+/**
+ * Checks what an export needs: Chromium (Playwright's browser) for every format, ffmpeg for video.
+ * Returns `{ ok, missing: ("chromium"|"ffmpeg")[], installCommand }`; `installCommand` is null when ok.
+ */
+export async function checkExportDependencies(format = "png") {
+  const missing = [];
+  try {
+    const { chromium } = await import("playwright");
+    await fs.access(chromium.executablePath());
+  } catch {
+    missing.push("chromium");
+  }
+  if (format === "video" && !(await commandRuns("ffmpeg", ["-version"]))) missing.push("ffmpeg");
+  return { ok: missing.length === 0, missing, installCommand: missing.length ? missing.map((name) => INSTALL[name]).join(" && ") : null };
+}
+
 async function launchChromium() {
   let chromium;
   try { ({ chromium } = await import("playwright")); }
@@ -171,12 +212,18 @@ async function launchChromium() {
   return chromium.launch({ headless: true });
 }
 
-async function captureSlides(presentation, preset, pathFor) {
+async function captureSlides(presentation, preset, pathFor, { onProgress, signal } = {}) {
+  throwIfAborted(signal);
   const browser = await launchChromium();
   const clipped = [];
+  // Closing the browser interrupts a capture in flight.
+  const stop = () => browser.close().catch(() => {});
+  signal?.addEventListener("abort", stop, { once: true });
+  const total = presentation.slides.length;
   try {
     const page = await browser.newPage({ viewport: { width: preset.width, height: preset.height }, deviceScaleFactor: 1 });
     for (const [index, slide] of presentation.slides.entries()) {
+      throwIfAborted(signal);
       await page.setContent(await renderExportDocument(presentation, slide, index, preset), { waitUntil: "load" });
       await page.evaluate(() => document.fonts.ready);
       const overflows = await page.evaluate(() => {
@@ -185,14 +232,25 @@ async function captureSlides(presentation, preset, pathFor) {
       });
       if (overflows) clipped.push(index + 1);
       await page.locator("#canvas").screenshot({ path: pathFor(index, slide), animations: "disabled" });
+      onProgress?.({ done: index + 1, total });
     }
-  } finally { await browser.close(); }
+  } catch (error) {
+    if (signal?.aborted) throw new ExportCancelled("Export cancelled.");
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", stop);
+    await browser.close().catch(() => {});
+  }
   return { clipped };
 }
 
-function runFfmpeg(args) {
+function runFfmpeg(args, signal) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new ExportCancelled("Export cancelled."));
     const child = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
+    const stop = () => child.kill("SIGKILL");
+    signal?.addEventListener("abort", stop, { once: true });
+    child.on("exit", () => signal?.removeEventListener("abort", stop));
     let stderr = "";
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
@@ -203,7 +261,8 @@ function runFfmpeg(args) {
       else reject(error);
     });
     child.on("close", (code) => {
-      if (code === 0) resolve();
+      if (signal?.aborted) reject(new ExportCancelled("Export cancelled."));
+      else if (code === 0) resolve();
       else {
         const tail = stderr.trim().split("\n").slice(-4).join(" ");
         reject(new Error(`ffmpeg could not write the video (exit ${code}). ${tail}`));
@@ -212,17 +271,32 @@ function runFfmpeg(args) {
   });
 }
 
-export async function exportCarousel(presentation, { preset: presetName = "instagram", outputDir = "dist/carousel" } = {}) {
+/**
+ * Exports one PNG per slide. `onProgress({ done, total })` fires after each slide; aborting
+ * `signal` stops Chromium and resolves with `{ cancelled: true, outputDir, files }` (the PNGs
+ * written so far stay). `files` lists the written file names.
+ */
+export async function exportCarousel(presentation, { preset: presetName = "instagram", outputDir = "dist/carousel", onProgress, signal } = {}) {
   const preset = PRESETS[presetName];
   if (!preset) throw new Error(`Unknown preset "${presetName}". Choose ${presetList()}.`);
   const absoluteOutput = path.resolve(outputDir);
   await fs.mkdir(absoluteOutput, { recursive: true });
-  const { clipped } = await captureSlides(presentation, preset, (index, slide) => {
-    const slug = fileSlug(slide.title, "slide");
-    return path.join(absoluteOutput, `${String(index + 1).padStart(2, "0")}-${slug}.png`);
-  });
+  const files = [];
+  let clipped;
+  try {
+    ({ clipped } = await captureSlides(presentation, preset, (index, slide) => {
+      const slug = fileSlug(slide.title, "slide");
+      const name = `${String(index + 1).padStart(2, "0")}-${slug}.png`;
+      files.push(name);
+      return path.join(absoluteOutput, name);
+    }, { onProgress, signal }));
+  } catch (error) {
+    if (error instanceof ExportCancelled) return { cancelled: true, outputDir: absoluteOutput, files: await existing(absoluteOutput, files) };
+    throw error;
+  }
+  files.push("README.txt");
   await fs.writeFile(path.join(absoluteOutput, "README.txt"), `Exported by Flipbook MD\nPresentation: ${presentation.title}\nPreset: ${preset.label}\nDimensions: ${preset.width}x${preset.height}\nSlides: ${presentation.slides.length}\n\nUpload the PNG files in numeric order as a multi-image post. Check the platform's current image limits and cropping rules before publishing.\n`);
-  return { count: presentation.slides.length, preset: preset.label, width: preset.width, height: preset.height, outputDir: absoluteOutput, clipped };
+  return { count: presentation.slides.length, preset: preset.label, width: preset.width, height: preset.height, outputDir: absoluteOutput, files, clipped };
 }
 
 const XFADE = { fade: "fade", slide: "slideleft" };
@@ -250,7 +324,11 @@ function videoArgs({ framesDir, count, seconds, rate, xfade, fadeSeconds, output
   return ["-y", ...inputs, "-filter_complex", chain.join(";"), "-map", `[${last}]`, "-t", String(seconds), ...encode];
 }
 
-export async function exportVideo(presentation, { preset: presetName = "instagram", outputDir = "dist/video", duration, fps = 30, transition = "none", transitionDuration = 0.4 } = {}) {
+/**
+ * Exports an MP4. `onProgress({ done, total })` fires after each slide frame; aborting `signal`
+ * stops Chromium or ffmpeg and resolves with `{ cancelled: true }`.
+ */
+export async function exportVideo(presentation, { preset: presetName = "instagram", outputDir = "dist/video", duration, fps = 30, transition = "none", transitionDuration = 0.4, onProgress, signal } = {}) {
   const preset = PRESETS[presetName];
   if (!preset) throw new Error(`Unknown preset "${presetName}". Choose ${presetList()}.`);
   const seconds = Number(duration);
@@ -287,8 +365,17 @@ export async function exportVideo(presentation, { preset: presetName = "instagra
 
   const framesDir = await fs.mkdtemp(path.join(os.tmpdir(), "flipbook-video-"));
   try {
-    const { clipped } = await captureSlides(presentation, preset, (index) => path.join(framesDir, `${index + 1}.png`));
-    await runFfmpeg(videoArgs({ framesDir, count, seconds, rate, xfade, fadeSeconds, outputFile }));
+    let clipped;
+    try {
+      ({ clipped } = await captureSlides(presentation, preset, (index) => path.join(framesDir, `${index + 1}.png`), { onProgress, signal }));
+      await runFfmpeg(videoArgs({ framesDir, count, seconds, rate, xfade, fadeSeconds, outputFile }), signal);
+    } catch (error) {
+      if (error instanceof ExportCancelled) {
+        await fs.rm(outputFile, { force: true });
+        return { cancelled: true, outputDir: path.dirname(outputFile), files: [] };
+      }
+      throw error;
+    }
     // Named after the video so it never replaces a README.txt that is already in the folder.
     const readme = `${outputFile}.txt`;
     await fs.writeFile(readme, `Exported by Flipbook MD\nPresentation: ${presentation.title}\nFormat: video\nPreset: ${preset.label}\nDimensions: ${preset.width}x${preset.height}\nDuration: ${seconds}s\nFrame rate: ${rate} fps\nTransition: ${xfade ? `${transition}, ${fadeSeconds}s` : "none"}\nSlides: ${presentation.slides.length}\nFile: ${path.basename(outputFile)}\n\nEach slide is held for the same share of the duration. The file is H.264 in an MP4.\n`);
@@ -301,6 +388,7 @@ export async function exportVideo(presentation, { preset: presetName = "instagra
       height: preset.height,
       outputDir: path.dirname(outputFile),
       outputFile,
+      files: [path.basename(outputFile), path.basename(readme)],
       duration: seconds,
       fps: rate,
       transition: xfade ? transition : "none",

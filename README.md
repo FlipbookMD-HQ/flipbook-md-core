@@ -59,6 +59,27 @@ const deck = await discoverPresentation("./decks/my-guide");
 const html = await renderSlideDocument(deck, 0, { draft, assetBase: "/files/" });
 ```
 
+### Export with progress and cancel
+
+```js
+import { checkExportDependencies, exportCarousel } from "@flipbook-md/core";
+
+const deps = await checkExportDependencies("png"); // "video" also checks ffmpeg
+if (!deps.ok) console.log(`Run: ${deps.installCommand}`);
+
+const controller = new AbortController();
+const result = await exportCarousel(deck, {
+  preset: "instagram",
+  outputDir: "dist/carousel",
+  onProgress: ({ done, total }) => console.log(`${done}/${total}`),
+  signal: controller.signal // controller.abort() stops Chromium (and ffmpeg for video)
+});
+if (result.cancelled) console.log("Cancelled; kept", result.files);
+else console.log(result.files); // ["01-intro.png", …, "README.txt"]
+```
+
+`startServer` also takes a function instead of a presentation (called per request, so saved edits show after a reload) and a `startSlide` option; the player honours `?slide=N` too.
+
 ### Check against the blueprint without throwing
 
 ```js
