@@ -59,6 +59,24 @@ const deck = await discoverPresentation("./decks/my-guide");
 const html = await renderSlideDocument(deck, 0, { draft, assetBase: "/files/" });
 ```
 
+### Read and write kits
+
+```js
+import { readKit, writeKit, renderSampleDocument } from "@flipbook-md/core";
+
+// library: ~/Documents/flipbook/{themes,templates,blueprints}/<name>; deck: presentation.css,
+// templates.yml, blueprint.yml in deckDir; builtin: core's own library (read-only).
+const ref = { kind: "theme", name: "dusk", scope: "library" };
+const { hash } = await writeKit(ref, { source: ":root { --accent: #f05; }" }, null); // null = create
+const kit = await readKit(ref); // { source, parsed, hash, builtIn, path, invalid }
+await writeKit(ref, { source: kit.source.replace("#f05", "#0f8") }, kit.hash);
+
+// Cover, content, quote, media and callout samples in one script-free document.
+const html = await renderSampleDocument({ themeCss: kit.source, canvas: "midnight" });
+```
+
+YAML kits are validated by the same normalizers the loader uses before anything is written.
+
 ### Export with progress and cancel
 
 ```js

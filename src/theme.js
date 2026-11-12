@@ -181,3 +181,32 @@ export async function loadThemeCss(directory) {
   }
   return css.trim() ? css : "";
 }
+
+/**
+ * Theme CSS for a sample preview: local `url()` files that resolve inside `root` are inlined,
+ * and any other local reference (a missing file, `../` outside the root) is dropped (`none`).
+ * External and data URLs stay.
+ */
+export async function sampleThemeCss(css, root) {
+  const source = String(css ?? "");
+  let result = "";
+  let cursor = 0;
+  for (const match of source.matchAll(themeUrlPattern())) {
+    result += source.slice(cursor, match.index);
+    const { value } = unquoteUrl(match[1]);
+    if (!value || isExternalUrl(value) || value.startsWith("#")) {
+      result += match[0];
+    } else {
+      const asset = themeAssetPath(value);
+      const file = asset && root ? await resolveThemeAsset(root, asset.relative) : null;
+      if (file) {
+        const data = await fs.readFile(file);
+        result += `url("data:${assetMime(file)};base64,${data.toString("base64")}")`;
+      } else {
+        result += "none";
+      }
+    }
+    cursor = match.index + match[0].length;
+  }
+  return result + source.slice(cursor);
+}

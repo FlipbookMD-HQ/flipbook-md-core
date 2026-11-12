@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { cssForStyleTag, inlineThemeAssets } from "./theme.js";
+import { cssForStyleTag, inlineThemeAssets, sampleThemeCss, scopeThemeCss } from "./theme.js";
 import { inlinePresentationFiles } from "./attachments.js";
-import { templateAreaCss } from "./templates.js";
-import { bandHtml, counterHtml, counterNumbers, exportOrnament, surfaceCss } from "./chrome.js";
+import { libraryRoot, templateAreaCss } from "./templates.js";
+import { bandHtml, counterHtml, counterNumbers, exportOrnament, parseChrome, surfaceCss } from "./chrome.js";
 import { renderDraftSlide } from "./presentation.js";
 import { ValidationError } from "./writer.js";
 
@@ -119,6 +119,62 @@ export async function renderSlideDocument(presentation, index, { draft = null, a
   const deck = draft ? { ...presentation, slides: presentation.slides.map((item, at) => (at === index ? slide : item)) } : presentation;
   const { head, payload } = await documentParts(deck, slide, index, chosen, assetBase);
   return `${head}<body><div id="canvas" class="canvas"><template shadowrootmode="open">${payload}</template></div></body></html>`;
+}
+
+/** The sample deck: one slide per common role. */
+export const SAMPLE_SLIDES = [
+  { role: "cover", template: "cover", markdown: "# Sample deck\n\nA subtitle that sets the scene" },
+  { role: "content", markdown: "# Content\n\nA short paragraph with **bold** and *italic* text.\n\n- First point\n- Second point\n- Third point" },
+  { role: "quote", markdown: "> The best way to predict the future is to invent it.\n\n— Alan Kay" },
+  {
+    role: "media",
+    markdown: `# Media\n\n![Placeholder](data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900"><rect width="1600" height="900" fill="#2a3550"/><path d="M560 620l200-240 160 180 100-110 180 170z" fill="#4a5a80"/><circle cx="1040" cy="330" r="60" fill="#4a5a80"/></svg>').toString("base64")})`
+  },
+  { role: "callout", markdown: "# 42%\n\nA callout states one number or claim, large." }
+];
+
+function sampleTemplateFor(sample, templates) {
+  if (sample.template) return sample.template;
+  // A kit template made for this role shows the kit's layout; otherwise flow.
+  return Object.values(templates).find((template) => template?.role === sample.role)?.name ?? null;
+}
+
+/**
+ * One script-free HTML document showing sample slides (cover, content, quote, media, callout)
+ * in a grid, styled by `themeCss` with `templates`, `chrome` (raw group `chrome:` value) and
+ * `canvas`. Theme `url()`s resolve inside `assetRoot` (default: the built-in themes folder);
+ * other local references are dropped. `slides` replaces the samples (`{ markdown, template?, role? }`).
+ */
+export async function renderSampleDocument({ themeCss = "", templates = {}, chrome = null, canvas = "midnight", slides = SAMPLE_SLIDES, assetRoot = null, preset: presetName = "instagram" } = {}) {
+  const preset = PRESETS[presetName];
+  if (!preset) throw new ValidationError(`Unknown preset "${presetName}".`, { field: "preset" });
+  const root = assetRoot ?? path.join(libraryRoot(), "themes");
+  const parsedChrome = chrome == null ? null : parseChrome(chrome);
+  const deck = {
+    title: "Sample deck",
+    theme: canvas,
+    themeCss: scopeThemeCss(await sampleThemeCss(themeCss, root)),
+    root,
+    sourcePath: null,
+    templates,
+    chrome: parsedChrome,
+    slides: slides.map((_, index) => ({ index, source: `sample ${index + 1}`, title: "", template: "flow", html: "" }))
+  };
+  for (const [index, sample] of slides.entries()) {
+    const template = sampleTemplateFor(sample, templates);
+    deck.slides[index] = await renderDraftSlide(deck, index, { markdown: sample.markdown, ...(template ? { template } : {}) });
+  }
+  const colors = themeColors(canvas);
+  const scale = 0.25;
+  const figures = [];
+  for (const [index, slide] of deck.slides.entries()) {
+    const { payload } = await documentParts(deck, slide, index, preset, null);
+    const label = escapeHtml(slides[index].role ?? `slide ${index + 1}`);
+    figures.push(`<figure class="sample" data-sample="${label}"><div class="frame"><div class="canvas"><template shadowrootmode="open">${payload}</template></div></div><figcaption>${label}</figcaption></figure>`);
+  }
+  const { width, height } = preset;
+  const style = `html,body{margin:0;background:#0006;color:#ccd;font:13px system-ui,sans-serif}.samples{display:flex;flex-wrap:wrap;gap:16px;padding:16px}.sample{margin:0}.frame{width:${width * scale}px;height:${height * scale}px;overflow:hidden;border-radius:6px}.canvas{box-sizing:border-box;width:${width}px;height:${height}px;display:flex;flex-direction:column;background:${colors.bg};transform:scale(${scale});transform-origin:0 0}figcaption{margin-top:6px;text-align:center}`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${style}</style></head><body><div class="samples">${figures.join("")}</div></body></html>`;
 }
 
 async function chromeInner(presentation, slide, index, template, layout, role, density, slideHtml) {
