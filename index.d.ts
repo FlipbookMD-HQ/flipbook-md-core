@@ -227,6 +227,18 @@ export function surfaceCss(presentation: Presentation, hostSelector: string, pre
 export function playerOrnament(ornament: unknown): string;
 export function exportOrnament(ornament: unknown, root: string): Promise<string>;
 
+// create (US-2)
+export interface CreateDeckOptions {
+  /** 1-60 characters: lowercase letters, digits and dashes. */
+  name: string;
+  /** 1-120 characters. */
+  title: string;
+  kind: "folder" | "single";
+  /** A media kit (template group) name, or null for a blank deck. */
+  group?: string | null;
+}
+export function createDeck(dir: string, options: CreateDeckOptions): Promise<{ path: string }>;
+
 // configuration
 export function parseTransition(type: unknown, duration: unknown, where: string): Transition;
 export function loadConfiguration(root: string): Promise<Configuration>;
@@ -297,3 +309,40 @@ export function inlineThemeAssets(css: string, root: string): Promise<string>;
 export function cssForStyleTag(css: string): string;
 export function loadNamedTheme(name: string): Promise<string>;
 export function loadThemeCss(directory: string): Promise<string>;
+
+// writer (US-2)
+export class FileConflictError extends Error {
+  constructor(file: string, currentHash: string | null);
+  code: "FILE_CONFLICT";
+  path: string;
+  /** The hash on disk now, or null when the file does not exist. */
+  currentHash: string | null;
+}
+export class BuiltInReadOnlyError extends Error {
+  constructor(file: string);
+  code: "BUILTIN_READ_ONLY";
+  path: string;
+}
+export class ValidationError extends Error {
+  constructor(message: string, options?: { code?: string; path?: string; fields?: Array<{ path: string; message: string }> });
+  code: "VALIDATION_FAILED" | "PATH_OUTSIDE_ROOT" | "KIT_INVALID" | (string & {});
+  path?: string;
+  fields?: Array<{ path: string; message: string }>;
+}
+export class DeckExistsError extends Error {
+  constructor(file: string);
+  code: "DECK_EXISTS";
+  path: string;
+}
+export class KitNotFoundError extends Error {
+  constructor(kit: string);
+  code: "KIT_NOT_FOUND";
+  kit: string;
+}
+export function hashBytes(bytes: Uint8Array | string): string;
+export function readFileWithHash(file: string): Promise<{ text: string; hash: string }>;
+export function atomicWrite(
+  file: string,
+  data: string | Uint8Array,
+  options: { baseHash: string | null; roots: string[] }
+): Promise<{ hash: string }>;

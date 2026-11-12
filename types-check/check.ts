@@ -17,6 +17,10 @@ import {
   resolveExportOptions,
   renderExportDocument,
   addSavedTemplate,
+  createDeck,
+  atomicWrite,
+  readFileWithHash,
+  FileConflictError,
   type Presentation,
   type Placement,
   type ExportResult
@@ -43,6 +47,13 @@ export async function exercise(): Promise<void> {
   const video = await exportVideo(deck, { duration: 5 });
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
   const error = new BlueprintError(["x"]);
+  const created: { path: string } = await createDeck("decks", { name: "talk", title: "Talk", kind: "folder", group: null });
+  const read = await readFileWithHash(created.path);
+  await atomicWrite(created.path, read.text, { baseHash: read.hash, roots: ["decks"] });
+  const conflict = new FileConflictError("x", null);
+  void conflict.currentHash;
+  // @ts-expect-error: atomicWrite needs a baseHash.
+  await atomicWrite("x", "y", { roots: ["decks"] });
   void [titles, width, flow, cover, style, placement, violations, chrome, measured.chars, html, result.count, video.duration, saved.libraryFile, error.violations];
 
   // @ts-expect-error: discoverPresentation takes a path string, not a number.
