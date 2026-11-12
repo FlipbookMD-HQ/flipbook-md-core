@@ -28,6 +28,21 @@ console.log(`Open ${url}`);
 await exportCarousel(deck, { preset: "instagram", outputDir: "dist/carousel" });
 ```
 
+### Create and write files
+
+```js
+import { createDeck, readFileWithHash, atomicWrite, FileConflictError } from "@flipbook-md/core";
+
+// A folder deck with one placeholder slide per required step of the kit's blueprint.
+const { path } = await createDeck("./decks", { name: "my-guide", title: "My guide", kind: "folder", group: "marvel_content_guide" });
+
+// Hash-checked, atomic writes: pass the hash you read, or null for a new file.
+const { text, hash } = await readFileWithHash(`${path}/slides/01_cover.slide.md`);
+await atomicWrite(`${path}/slides/01_cover.slide.md`, text.replace("Guide", "Field guide"), { baseHash: hash, roots: ["./decks"] });
+```
+
+`atomicWrite` refuses files outside `roots`, refuses core's built-in `library/` (`BuiltInReadOnlyError`), and throws `FileConflictError` when the file changed since you read it. Each typed error has a `code` such as `FILE_CONFLICT` or `DECK_EXISTS`.
+
 Only the package entry is public. Deep imports such as `@flipbook-md/core/src/…` are blocked. Type declarations ship in `index.d.ts`.
 
 The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/uminocelo/flipbook-md#write-a-presentation).
