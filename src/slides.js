@@ -3,7 +3,7 @@ import path from "node:path";
 import { parse as parseYaml, parseDocument } from "yaml";
 import { loadGroup } from "./groups.js";
 import { loadDeckTemplates, lookupTemplate } from "./templates.js";
-import { FileConflictError, ValidationError, atomicWrite, readFileWithHash } from "./writer.js";
+import { FileConflictError, LastSlideError, ValidationError, atomicWrite, readFileWithHash } from "./writer.js";
 
 // Reads slides into SlideDrafts and writes drafts back, changing only what changed
 // (tech-spec: data-model § Writer rules). A slide is a folder-deck file, or one chunk of a
@@ -453,4 +453,225 @@ export async function updateSlide(deckPath, slideId, draft, baseHash) {
   }
   await fs.rm(found.file, { force: true });
   return { slideId: newSource, hashes: { [newSource]: written.hash, "presentation.yml": manifest.hash } };
+}
+
+// ---------- structure: insert, remove, reorder ----------
+
+/**
+ * The text of a brand-new slide: frontmatter for a title (folder decks only), directive comments,
+ * the Markdown, then notes. `typeInText` is false when the folder file name carries the type.
+ */
+function newSlideText(next, { single, eol, typeInText }) {
+  if (single && next.title != null) {
+    throw new ValidationError("Single-file slides take their title from the first # heading.", { fields: [{ path: "title", message: "Use a # heading instead." }], field: "title" });
+  }
+  let front = "";
+  if (next.title != null) {
+    const doc = parseDocument("");
+    doc.set("title", next.title);
+    front = `---${eol}${doc.toString().replace(/\n$/, "").split("\n").join(eol)}${eol}---${eol}`;
+  }
+  const directives = [
+    ...(next.template ? [["template", next.template]] : []),
+    ...(typeInText && next.type ? [["type", next.type]] : []),
+    ...Object.entries(next.directives)
+  ].map(([key, value]) => `<!-- ${key}: ${value} -->`);
+  const blocks = [[...directives, ...(next.markdown ? [next.markdown.split("\n").join(eol)] : [])].join(eol)];
+  if (next.notes) blocks.push(notesComment(next.notes, eol, true));
+  return `${front}${blocks.filter(Boolean).join(`${eol}${eol}`)}${eol}`;
+}
+
+async function validateTemplate(deck, next) {
+  if (!next.template) return;
+  const templates = await deckTemplates(deck);
+  if (!lookupTemplate(next.template, templates).found) {
+    throw new ValidationError(`Unknown template "${next.template}".`, { fields: [{ path: "template", message: "Pick a template this deck knows." }], field: "template" });
+  }
+}
+
+/** The file whose hash guards a structure change: the manifest, or the single file. */
+async function structureBase(deckPath, baseHash) {
+  const deck = await deckInfo(deckPath);
+  const file = deck.single ? deck.absolute : deck.manifestFile;
+  const { text, hash } = deck.single ? await readFileWithHash(file) : deck.manifest;
+  if (hash !== baseHash) throw new FileConflictError(file, hash);
+  return { deck, file, text, hash, key: deck.single ? path.basename(file) : "presentation.yml" };
+}
+
+/**
+ * A single-file deck as glue and chunk cores: `glue[0] core[0] glue[1] core[1] … glue[n]`.
+ * Cores are the chunks without surrounding whitespace; glue holds frontmatter, blank lines and `---`.
+ */
+function chunkLayout(text) {
+  const bom = text.startsWith("﻿") ? 1 : 0;
+  const cores = chunkSpans(text.slice(bom)).map(([from, to]) => {
+    const raw = text.slice(from + bom, to + bom);
+    const start = from + bom + (raw.length - raw.trimStart().length);
+    return [start, start + raw.trim().length];
+  });
+  const glue = [];
+  let cursor = 0;
+  for (const [from, to] of cores) {
+    glue.push(text.slice(cursor, from));
+    cursor = to;
+  }
+  glue.push(text.slice(cursor));
+  return { cores: cores.map(([from, to]) => text.slice(from, to)), glue };
+}
+
+function joinLayout({ cores, glue }) {
+  return cores.map((core, index) => glue[index] + core).join("") + glue[cores.length];
+}
+
+function manifestSeq(doc) {
+  const slides = doc.get("slides", true);
+  if (!slides?.items) throw new ValidationError("presentation.yml has no slides list.", { path: "presentation.yml" });
+  return slides;
+}
+
+const itemSource = (item) => (typeof item?.value === "string" ? item.value : item?.get?.("file"));
+
+/** The next free `NN` across the manifest and the slides folder (gaps are not reused). */
+async function nextSlideNumber(deck, slides, dir) {
+  const names = [...slides.map((source) => path.basename(source)), ...(await fs.readdir(path.join(deck.root, dir)).catch(() => []))];
+  const numbers = names.map((name) => /^(\d+)[_.-]/.exec(name)).filter(Boolean).map((match) => Number(match[1]));
+  return Math.max(0, ...numbers) + 1;
+}
+
+/**
+ * Inserts a slide after `afterSlideId` (null puts it first). A folder deck gets
+ * `slides/NN_<type|slide>.slide.md` with the next free `NN` and a manifest entry; a single-file
+ * deck gets a new chunk. `baseHash` is the manifest's (folder) or the file's (single) hash.
+ * Returns `{ slideId, hashes }`.
+ */
+export async function insertSlide(deckPath, afterSlideId, draft, baseHash) {
+  const next = normalizeDraft(draft);
+  const base = await structureBase(deckPath, baseHash);
+  const { deck } = base;
+  await validateTemplate(deck, next);
+  const eol = base.text.includes("\r\n") ? "\r\n" : "\n";
+
+  if (deck.single) {
+    if (/^\s*---\s*$/m.test(next.markdown)) {
+      throw new ValidationError("A line with only --- starts a new slide in a single-file deck.", { fields: [{ path: "markdown", message: "Remove the --- line." }], field: "markdown" });
+    }
+    const layout = chunkLayout(base.text);
+    const after = afterSlideId == null ? -1 : Number(/^#(\d+)$/.exec(String(afterSlideId))?.[1] ?? NaN);
+    if (afterSlideId != null && !(after >= 0 && after < layout.cores.length)) throw slideNotFound(afterSlideId);
+    const core = newSlideText(next, { single: true, eol, typeInText: true }).trim();
+    const separator = `${eol}${eol}---${eol}${eol}`;
+    if (after === -1) layout.cores[0] = `${core}${separator}${layout.cores[0]}`;
+    else layout.cores[after] = `${layout.cores[after]}${separator}${core}`;
+    const written = await atomicWrite(base.file, joinLayout(layout), { baseHash: base.hash, roots: [deck.root] });
+    return { slideId: `#${after + 1}`, hashes: { [base.key]: written.hash } };
+  }
+
+  const slides = manifestSlides(deck.meta);
+  const after = afterSlideId == null ? -1 : slides.indexOf(String(afterSlideId));
+  if (afterSlideId != null && after === -1) throw slideNotFound(afterSlideId);
+  const dir = path.posix.dirname(slides[Math.max(after, 0)] ?? "slides/x") || "slides";
+  const number = String(await nextSlideNumber(deck, slides, dir)).padStart(2, "0");
+  const source = path.posix.join(dir, `${number}_${next.type ?? "slide"}.slide.md`);
+  const file = path.resolve(deck.root, source);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const text = newSlideText(next, { single: false, eol: "\n", typeInText: false });
+  const slide = await atomicWrite(file, text, { baseHash: null, roots: [deck.root] });
+
+  const doc = parseDocument(base.text);
+  const seq = manifestSeq(doc);
+  const node = doc.createNode(source);
+  const quoted = seq.items.find((item) => typeof item?.value === "string")?.type;
+  if (quoted) node.type = quoted;
+  seq.items.splice(after + 1, 0, node);
+  try {
+    const manifest = await atomicWrite(base.file, doc.toString(), { baseHash: base.hash, roots: [deck.root] });
+    return { slideId: source, hashes: { [source]: slide.hash, "presentation.yml": manifest.hash } };
+  } catch (error) {
+    await fs.rm(file, { force: true });
+    throw error;
+  }
+}
+
+/**
+ * Removes a slide. A folder deck loses the manifest entry, then the file; a single-file deck
+ * loses the chunk and one separator. The last slide can't be removed (LastSlideError).
+ */
+export async function removeSlide(deckPath, slideId, baseHash) {
+  const base = await structureBase(deckPath, baseHash);
+  const { deck } = base;
+
+  if (deck.single) {
+    const layout = chunkLayout(base.text);
+    const index = Number(/^#(\d+)$/.exec(String(slideId))?.[1] ?? NaN);
+    if (!(index >= 0 && index < layout.cores.length)) throw slideNotFound(slideId);
+    if (layout.cores.length === 1) throw new LastSlideError(base.file);
+    // Drop the chunk with the glue after it, or, for the last chunk, the glue before it.
+    if (index < layout.cores.length - 1) layout.glue.splice(index + 1, 1);
+    else layout.glue.splice(index, 1);
+    layout.cores.splice(index, 1);
+    const written = await atomicWrite(base.file, joinLayout(layout), { baseHash: base.hash, roots: [deck.root] });
+    return { hashes: { [base.key]: written.hash } };
+  }
+
+  const slides = manifestSlides(deck.meta);
+  const index = slides.indexOf(String(slideId));
+  if (index === -1) throw slideNotFound(slideId);
+  if (slides.length === 1) throw new LastSlideError(base.file);
+  const doc = parseDocument(base.text);
+  const seq = manifestSeq(doc);
+  const at = seq.items.findIndex((item) => itemSource(item) === String(slideId));
+  seq.items.splice(at, 1);
+  const manifest = await atomicWrite(base.file, doc.toString(), { baseHash: base.hash, roots: [deck.root] });
+  // The file goes only when no other manifest entry still points at it.
+  if (!slides.some((source, other) => other !== index && source === String(slideId))) {
+    const file = path.resolve(deck.root, String(slideId));
+    if (!path.relative(deck.root, file).startsWith("..")) await fs.rm(file, { force: true });
+  }
+  return { hashes: { "presentation.yml": manifest.hash } };
+}
+
+/**
+ * Reorders slides. `slideIds` must be a permutation of the current IDs. A folder deck changes
+ * only the manifest's `slides:` order (files are never renamed); a single-file deck moves the
+ * chunks and keeps each chunk's bytes, with blank lines and separators staying in place.
+ */
+export async function reorderSlides(deckPath, slideIds, baseHash) {
+  const base = await structureBase(deckPath, baseHash);
+  const { deck } = base;
+  const current = deck.single ? chunkLayout(base.text).cores.map((_, index) => `#${index}`) : manifestSlides(deck.meta);
+  const wanted = Array.isArray(slideIds) ? slideIds.map(String) : [];
+  const sorted = (list) => [...list].sort().join("\n");
+  if (wanted.length !== current.length || sorted(wanted) !== sorted(current)) {
+    throw new ValidationError("slideIds must list every slide of the deck exactly once.", { fields: [{ path: "slideIds", message: "Not a permutation of the deck's slides." }], field: "slideIds" });
+  }
+
+  let text;
+  if (deck.single) {
+    const layout = chunkLayout(base.text);
+    const cores = wanted.map((id) => layout.cores[Number(id.slice(1))]);
+    text = joinLayout({ cores, glue: layout.glue });
+  } else {
+    const doc = parseDocument(base.text);
+    const seq = manifestSeq(doc);
+    const items = seq.items.filter((item) => typeof itemSource(item) === "string");
+    if (items.every((item) => typeof item.value === "string" && item.range)) {
+      // Swap the entries' source text in place, so comments, quoting and spacing stay put.
+      const pool = new Map();
+      for (const item of items) {
+        const raw = base.text.slice(item.range[0], item.range[1]);
+        pool.set(item.value, [...(pool.get(item.value) ?? []), raw]);
+      }
+      const replacements = items.map((item, index) => ({ from: item.range[0], to: item.range[1], raw: pool.get(wanted[index]).shift() }));
+      text = base.text;
+      for (const { from, to, raw } of replacements.reverse()) text = text.slice(0, from) + raw + text.slice(to);
+    } else {
+      const pool = new Map();
+      for (const item of items) pool.set(itemSource(item), [...(pool.get(itemSource(item)) ?? []), item]);
+      seq.items = wanted.map((id) => pool.get(id).shift());
+      text = doc.toString();
+    }
+  }
+  if (text === base.text) return { hashes: { [base.key]: base.hash } };
+  const written = await atomicWrite(base.file, text, { baseHash: base.hash, roots: [deck.root] });
+  return { hashes: { [base.key]: written.hash } };
 }

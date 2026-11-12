@@ -314,6 +314,21 @@ export function updateSlide(
   draft: SlideDraft,
   baseHash: string
 ): Promise<{ slideId: SlideId; hashes: Record<string, string> }>;
+/**
+ * Structure changes. `baseHash` is the hash of `presentation.yml` (folder decks) or of the
+ * single file. Folder reorders change only the manifest order; single-file reorders keep each
+ * chunk's bytes. Single-file slide IDs are positions, so they change after any structure write.
+ */
+export function insertSlide(
+  deckPath: string,
+  afterSlideId: SlideId | null,
+  draft: SlideDraft,
+  baseHash: string
+): Promise<{ slideId: SlideId; hashes: Record<string, string> }>;
+/** Throws LastSlideError for a deck's only slide. */
+export function removeSlide(deckPath: string, slideId: SlideId, baseHash: string): Promise<{ hashes: Record<string, string> }>;
+/** `slideIds` must be a permutation of the deck's slides, or it throws ValidationError. */
+export function reorderSlides(deckPath: string, slideIds: SlideId[], baseHash: string): Promise<{ hashes: Record<string, string> }>;
 
 // server
 export function startServer(presentation: Presentation, options?: { host?: string; port?: number }): Promise<ServerInstance>;
@@ -373,6 +388,11 @@ export class ValidationError extends Error {
 export class DeckExistsError extends Error {
   constructor(file: string);
   code: "DECK_EXISTS";
+  path: string;
+}
+export class LastSlideError extends Error {
+  constructor(file: string);
+  code: "LAST_SLIDE";
   path: string;
 }
 export class KitNotFoundError extends Error {
