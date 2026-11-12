@@ -32,6 +32,14 @@ export class ValidationError extends Error {
   }
 }
 
+export class LastSlideError extends Error {
+  constructor(file) {
+    super("A deck needs at least one slide.");
+    this.code = "LAST_SLIDE";
+    this.path = file;
+  }
+}
+
 export class DeckExistsError extends Error {
   constructor(file) {
     super(`A deck named ${path.basename(file)} already exists.`);
