@@ -319,6 +319,29 @@ export function exportCarousel(presentation: Presentation, options: CarouselOpti
 export function exportVideo(presentation: Presentation, options?: VideoOptions & { signal?: undefined }): Promise<ExportResult>;
 export function exportVideo(presentation: Presentation, options: VideoOptions & { signal: AbortSignal }): Promise<ExportResult | ExportCancelledResult>;
 /** Chromium for every export; ffmpeg too for video. */
+export interface SampleSlide {
+  markdown: string;
+  template?: string;
+  role?: string;
+}
+export const SAMPLE_SLIDES: SampleSlide[];
+/**
+ * One script-free HTML document with sample slides (cover, content, quote, media, callout) in a
+ * grid. Theme url()s resolve inside `assetRoot` (default: the built-in themes folder); other local
+ * references are dropped.
+ */
+export function renderSampleDocument(options?: {
+  themeCss?: string;
+  templates?: TemplateMap;
+  chrome?: unknown;
+  canvas?: string;
+  slides?: SampleSlide[];
+  assetRoot?: string | null;
+  preset?: string;
+  /** Show this deck's first `count` slides (default 5) with `themeCss` instead of the samples. */
+  presentation?: Presentation | null;
+  count?: number;
+}): Promise<string>;
 export function checkExportDependencies(format?: "png" | "carousel" | "video"): Promise<ExportDependencies>;
 
 // groups
@@ -472,3 +495,42 @@ export function atomicWrite(
   data: string | Uint8Array,
   options: { baseHash: string | null; roots: string[] }
 ): Promise<{ hash: string }>;
+
+// kits
+export type KitKind = "theme" | "template" | "blueprint" | "group";
+export interface KitRef {
+  kind: KitKind;
+  /** Ignored for deck scope (each kind has one deck file). */
+  name: string;
+  scope: "library" | "deck" | "builtin";
+  /** The deck folder, for deck scope. */
+  deckDir?: string;
+}
+export interface KitRead {
+  source: string;
+  /** The normalizer's output, or null when the file doesn't validate. */
+  parsed: unknown;
+  hash: string;
+  builtIn: boolean;
+  path: string;
+  /** The validation message when `parsed` is null. */
+  invalid: string | null;
+}
+export function resolveKitPath(ref: KitRef): string;
+export function parseKit(ref: KitRef, source: string): Promise<unknown>;
+export function readKit(ref: KitRef): Promise<KitRead>;
+/** `baseHash` null creates. Throws KitExistsError, KitInvalidError, ReservedNameError, BuiltInReadOnlyError, FileConflictError, ValidationError. */
+export function writeKit(ref: KitRef, change: { source: string }, baseHash: string | null): Promise<{ hash: string; path: string }>;
+export function sampleThemeCss(css: string, root: string | null): Promise<string>;
+export class KitExistsError extends Error {
+  code: "KIT_EXISTS";
+  path: string;
+}
+export class KitInvalidError extends Error {
+  code: "KIT_INVALID";
+  path?: string;
+}
+export class ReservedNameError extends Error {
+  code: "RESERVED_NAME";
+  field: "name";
+}

@@ -56,6 +56,30 @@ export class KitNotFoundError extends Error {
   }
 }
 
+export class KitExistsError extends Error {
+  constructor(file) {
+    super(`${path.basename(file)} already exists.`);
+    this.code = "KIT_EXISTS";
+    this.path = file;
+  }
+}
+
+export class KitInvalidError extends Error {
+  constructor(message, file) {
+    super(message);
+    this.code = "KIT_INVALID";
+    if (file) this.path = file;
+  }
+}
+
+export class ReservedNameError extends Error {
+  constructor(name) {
+    super(`"${name}" is a built-in template name. Pick another name.`);
+    this.code = "RESERVED_NAME";
+    this.field = "name";
+  }
+}
+
 /** sha256 hex of the exact bytes. */
 export function hashBytes(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");

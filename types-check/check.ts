@@ -8,6 +8,9 @@ import {
   loadGroup,
   startServer,
   checkExportDependencies,
+  readKit,
+  writeKit,
+  renderSampleDocument,
   exportCarousel,
   exportVideo,
   evaluateBlueprint,
@@ -64,6 +67,11 @@ export async function exercise(): Promise<void> {
   void install;
   const live = await startServer(async () => deck, { startSlide: 2 });
   await live.close();
+  const kit = await readKit({ kind: "theme", name: "dusk", scope: "library" });
+  const written: { hash: string } = await writeKit({ kind: "blueprint", name: "x", scope: "deck", deckDir: "." }, { source: kit.source }, kit.hash);
+  void written;
+  const sample: string = await renderSampleDocument({ themeCss: kit.source, canvas: "paper" });
+  void sample;
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
   const error = new BlueprintError(["x"]);
   const created: { path: string } = await createDeck("decks", { name: "talk", title: "Talk", kind: "folder", group: null });
