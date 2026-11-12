@@ -155,3 +155,12 @@ test("renderSampleDocument matches its structural snapshot and uses kit template
   assert.match(html, /--accent:#123456/);
   assert.equal((html.match(/shadowrootmode="open"/g) ?? []).length, 5);
 });
+
+test("renderSampleDocument with a presentation shows its first slides in the draft theme", async () => {
+  const deck = await discoverPresentation(path.resolve("examples/blueprint-talk"));
+  const html = await renderSampleDocument({ themeCss: ":root{--accent:#abcdef}", presentation: deck, count: 3 });
+  assert.equal((html.match(/shadowrootmode="open"/g) ?? []).length, 3);
+  assert.match(html, /--accent:#abcdef/);
+  assert.match(html, /Brief a decision/);
+  assert.doesNotMatch(html, /<script/i);
+});

@@ -144,10 +144,18 @@ function sampleTemplateFor(sample, templates) {
  * in a grid, styled by `themeCss` with `templates`, `chrome` (raw group `chrome:` value) and
  * `canvas`. Theme `url()`s resolve inside `assetRoot` (default: the built-in themes folder);
  * other local references are dropped. `slides` replaces the samples (`{ markdown, template?, role? }`).
+ * `presentation` instead shows that loaded deck's first `count` slides with `themeCss` in place
+ * of its own theme (its templates, chrome, canvas and files are kept; url()s resolve in its root).
  */
-export async function renderSampleDocument({ themeCss = "", templates = {}, chrome = null, canvas = "midnight", slides = SAMPLE_SLIDES, assetRoot = null, preset: presetName = "instagram" } = {}) {
+export async function renderSampleDocument({ themeCss = "", templates = {}, chrome = null, canvas = "midnight", slides = SAMPLE_SLIDES, assetRoot = null, preset: presetName = "instagram", presentation = null, count = 5 } = {}) {
   const preset = PRESETS[presetName];
   if (!preset) throw new ValidationError(`Unknown preset "${presetName}".`, { field: "preset" });
+  if (presentation) {
+    const deck = { ...presentation, themeCss: scopeThemeCss(await sampleThemeCss(themeCss, presentation.root)) };
+    const shown = deck.slides.slice(0, Math.max(1, count));
+    const labels = shown.map((slide, index) => slide.type ?? slide.role ?? `slide ${index + 1}`);
+    return sampleGrid(deck, shown, labels, preset, presentation.theme);
+  }
   const root = assetRoot ?? path.join(libraryRoot(), "themes");
   const parsedChrome = chrome == null ? null : parseChrome(chrome);
   const deck = {
@@ -164,12 +172,16 @@ export async function renderSampleDocument({ themeCss = "", templates = {}, chro
     const template = sampleTemplateFor(sample, templates);
     deck.slides[index] = await renderDraftSlide(deck, index, { markdown: sample.markdown, ...(template ? { template } : {}) });
   }
+  return sampleGrid(deck, deck.slides, slides.map((sample, index) => sample.role ?? `slide ${index + 1}`), preset, canvas);
+}
+
+async function sampleGrid(deck, shown, labels, preset, canvas) {
   const colors = themeColors(canvas);
   const scale = 0.25;
   const figures = [];
-  for (const [index, slide] of deck.slides.entries()) {
+  for (const [index, slide] of shown.entries()) {
     const { payload } = await documentParts(deck, slide, index, preset, null);
-    const label = escapeHtml(slides[index].role ?? `slide ${index + 1}`);
+    const label = escapeHtml(labels[index]);
     figures.push(`<figure class="sample" data-sample="${label}"><div class="frame"><div class="canvas"><template shadowrootmode="open">${payload}</template></div></div><figcaption>${label}</figcaption></figure>`);
   }
   const { width, height } = preset;
