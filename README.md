@@ -77,6 +77,15 @@ const html = await renderSampleDocument({ themeCss: kit.source, canvas: "midnigh
 
 YAML kits are validated by the same normalizers the loader uses before anything is written.
 
+Form edits send a merge patch instead of the whole file. Comments, key order and quoting survive, and `null` deletes a key:
+
+```js
+const talk = { kind: "blueprint", name: "talk", scope: "library" };
+await writeKit(talk, { patch: { types: { point: { max_chars: 250 } } } }, (await readKit(talk)).hash);
+// A deck's templates.yml is patched one template at a time (created if missing):
+await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir }, { patch: { align: "start" } }, hash);
+```
+
 ### Export with progress and cancel
 
 ```js

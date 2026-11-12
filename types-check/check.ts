@@ -70,6 +70,8 @@ export async function exercise(): Promise<void> {
   const kit = await readKit({ kind: "theme", name: "dusk", scope: "library" });
   const written: { hash: string } = await writeKit({ kind: "blueprint", name: "x", scope: "deck", deckDir: "." }, { source: kit.source }, kit.hash);
   void written;
+  const patched = await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir: "." }, { patch: { align: "start" } }, null);
+  void patched.hash;
   const sample: string = await renderSampleDocument({ themeCss: kit.source, canvas: "paper" });
   void sample;
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
