@@ -1,6 +1,6 @@
 {
   "name": "@flipbook-md/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Load, render, check and export Flipbook MD decks. Shared by the flipbook CLI and Flipbook Studio.",
   "license": "MIT",
   "author": "Celo (https://github.com/uminocelo)",

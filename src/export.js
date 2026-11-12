@@ -6,6 +6,8 @@ import { cssForStyleTag, inlineThemeAssets } from "./theme.js";
 import { inlinePresentationFiles } from "./attachments.js";
 import { templateAreaCss } from "./templates.js";
 import { bandHtml, counterHtml, counterNumbers, exportOrnament, surfaceCss } from "./chrome.js";
+import { renderDraftSlide } from "./presentation.js";
+import { ValidationError } from "./writer.js";
 
 // `scale` multiplies the export type and spacing, so short and tall images keep a readable layout.
 export const PRESETS = {
@@ -76,12 +78,15 @@ function exportBaseCss(preset, c) {
 .counter{color:var(--slide-text);font-variant-numeric:tabular-nums;font-weight:700}`;
 }
 
-export async function renderExportDocument(presentation, slide, index, preset) {
+// The slide's document parts. `assetBase` points deck files at a URL prefix instead of inlining them.
+async function documentParts(presentation, slide, index, preset, assetBase) {
   const colors = themeColors(presentation.theme);
   const { width, height } = preset;
-  const themeCss = cssForStyleTag(await inlineThemeAssets(presentation.themeCss || "", presentation.root));
+  const rebase = (text) => String(text ?? "").split("/presentation-file/").join(assetBase);
+  const rawTheme = presentation.themeCss || "";
+  const themeCss = cssForStyleTag(assetBase ? rebase(rawTheme) : await inlineThemeAssets(rawTheme, presentation.root));
   const base = cssForStyleTag(exportBaseCss(preset, colors) + templateAreaCss(".content") + surfaceCss(presentation, ".content", preset));
-  const slideHtml = await inlinePresentationFiles(slide.html, presentation.root);
+  const slideHtml = assetBase ? rebase(slide.html) : await inlinePresentationFiles(slide.html, presentation.root);
   const template = escapeHtml(slide.template || "flow");
   const layout = slide.layout ? ` data-layout="${escapeHtml(slide.layout)}"` : "";
   const role = slide.role ? ` data-role="${escapeHtml(slide.role)}"` : "";
@@ -90,7 +95,30 @@ export async function renderExportDocument(presentation, slide, index, preset) {
     ? await chromeInner(presentation, slide, index, template, layout, role, density, slideHtml)
     : `<div class="top"><div class="brand">FLIPBOOK <span>MD</span></div><div>${escapeHtml(presentation.title)}</div></div><div class="rule"></div><main class="content" data-template="${template}"${layout}${role}${density}><div class="slide-body">${slideHtml}</div></main><div class="footer"><span>Made with Flipbook MD</span><span class="counter">${String(index + 1).padStart(2, "0")} / ${String(presentation.slides.length).padStart(2, "0")}</span></div>`;
   const payload = `<style>@layer base{${base}}</style>${themeCss ? `<style>${themeCss}</style>` : ""}${inner}`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=${width}, initial-scale=1"><style>html,body{margin:0;width:${width}px;height:${height}px;overflow:hidden;background:${colors.bg}}#canvas{box-sizing:border-box!important;width:${width}px!important;height:${height}px!important;display:flex!important;flex-direction:column!important}</style></head><body><div id="canvas" class="canvas"></div><script>document.getElementById("canvas").attachShadow({mode:"open"}).innerHTML=${embedScriptString(payload)};</script></body></html>`;
+  const head = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=${width}, initial-scale=1"><style>html,body{margin:0;width:${width}px;height:${height}px;overflow:hidden;background:${colors.bg}}#canvas{box-sizing:border-box!important;width:${width}px!important;height:${height}px!important;display:flex!important;flex-direction:column!important}</style></head>`;
+  return { head, payload };
+}
+
+export async function renderExportDocument(presentation, slide, index, preset) {
+  const { head, payload } = await documentParts(presentation, slide, index, preset, null);
+  return `${head}<body><div id="canvas" class="canvas"></div><script>document.getElementById("canvas").attachShadow({mode:"open"}).innerHTML=${embedScriptString(payload)};</script></body></html>`;
+}
+
+/**
+ * One slide as a standalone, script-free HTML document for a sandboxed preview iframe.
+ * The slide markup matches renderExportDocument; the canvas uses a declarative shadow root.
+ * `draft` (a SlideDraft) replaces the slide's saved content; `assetBase` (for example
+ * "/api/decks/<id>/files/") serves deck files by URL instead of inlining them.
+ */
+export async function renderSlideDocument(presentation, index, { draft = null, assetBase = null, preset = "instagram" } = {}) {
+  const chosen = PRESETS[preset];
+  if (!chosen) throw new ValidationError(`Unknown preset "${preset}".`, { field: "preset" });
+  const saved = presentation.slides[index];
+  if (!saved) throw new ValidationError(`No slide at index ${index}.`, { code: "SLIDE_NOT_FOUND", field: "slideId" });
+  const slide = draft ? await renderDraftSlide(presentation, index, draft) : saved;
+  const deck = draft ? { ...presentation, slides: presentation.slides.map((item, at) => (at === index ? slide : item)) } : presentation;
+  const { head, payload } = await documentParts(deck, slide, index, chosen, assetBase);
+  return `${head}<body><div id="canvas" class="canvas"><template shadowrootmode="open">${payload}</template></div></body></html>`;
 }
 
 async function chromeInner(presentation, slide, index, template, layout, role, density, slideHtml) {
