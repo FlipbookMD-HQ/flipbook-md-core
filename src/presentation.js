@@ -11,6 +11,9 @@ import { applyBlueprint, pageTypeFromFilename, readPageType } from "./blueprint.
 import { mergeChrome, parseChrome } from "./chrome.js";
 import { loadGroup } from "./groups.js";
 import { loadConfiguration, playbackFromConfiguration } from "./configuration.js";
+import { stringify as stringifyYaml } from "yaml";
+import { lookupTemplate } from "./templates.js";
+import { ValidationError } from "./writer.js";
 
 marked.setOptions({
   gfm: true,
@@ -275,4 +278,43 @@ export async function discoverPresentation(inputPath = ".") {
 async function finishDeck(deck) {
   deck.playback = playbackFromConfiguration(await loadConfiguration(deck.root));
   return deck;
+}
+
+/**
+ * Builds the Slide that `draft` (a SlideDraft held in memory) would load as, at `index` of an
+ * already loaded presentation. Used to preview edits before they are saved.
+ */
+export async function renderDraftSlide(presentation, index, draft) {
+  const base = presentation.slides[index];
+  if (!base) throw new ValidationError(`No slide at index ${index}.`, { code: "SLIDE_NOT_FOUND", field: "slideId" });
+  const template = draft.template ? String(draft.template).trim().toLowerCase() : "";
+  if (template && !lookupTemplate(template, presentation.templates ?? {}).found) {
+    throw new ValidationError(`Unknown template "${template}".`, { fields: [{ path: "template", message: "Pick a template this deck knows." }], field: "template" });
+  }
+  const type = draft.type ? String(draft.type).trim().toLowerCase() : "";
+  const notes = String(draft.notes ?? "").trim();
+  const front = draft.title != null ? `---\n${stringifyYaml({ title: String(draft.title) })}---\n` : "";
+  const source = [
+    front,
+    template ? `<!-- template: ${template} -->\n` : "",
+    type ? `<!-- type: ${type} -->\n` : "",
+    String(draft.markdown ?? ""),
+    notes ? `\n\n<!-- notes:\n${notes}\n-->\n` : ""
+  ].join("");
+  const sourcePath = presentation.sourcePath && base.source && !base.source.startsWith("slide ") ? path.join(presentation.root, base.source) : null;
+  const fromDir = sourcePath ? path.dirname(sourcePath) : presentation.root;
+  // A neutral label: the draft's type field, not the filename, decides the type.
+  const slide = await normalizedSlide(source, index, presentation.root, fromDir, `slide ${index + 1}`, presentation.templates ?? {});
+  slide.source = base.source;
+  slide.type = type || null;
+  const rules = slide.type ? presentation.blueprint?.types?.[slide.type] : null;
+  if (!slide.templateExplicit && rules?.template) slide.template = rules.template;
+  const record = presentation.templates?.[slide.template];
+  slide.layout = record?.layout ?? null;
+  slide.role = record?.role ?? (slide.template === "cover" ? "cover" : null);
+  slide.density = record?.density ?? null;
+  slide.showCounter = Boolean(presentation.chrome) && slide.role !== "cover" && slide.template !== "cover" && slide.type !== "cover";
+  delete slide.markdown;
+  delete slide.templateExplicit;
+  return slide;
 }

@@ -1,29 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { loadConfiguration, playbackFromConfiguration, resolveExportOptions } from "../src/configuration.js";
 import { discoverPresentation } from "../src/presentation.js";
 
-const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function fixture(fn) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "flipbook-md-"));
   try { await fn(dir); } finally { await fs.rm(dir, { recursive: true, force: true }); }
-}
-
-function runFlipbook(args, cwd) {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, [path.join(repo, "bin/flipbook.js"), ...args], { cwd });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
-  });
 }
 
 test("reads export and playback settings from configuration.yml", async () => fixture(async (dir) => {
