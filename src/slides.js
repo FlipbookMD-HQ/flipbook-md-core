@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, parseDocument } from "yaml";
 import { loadGroup } from "./groups.js";
+import { discoverPresentation } from "./presentation.js";
 import { loadDeckTemplates, lookupTemplate } from "./templates.js";
 import { FileConflictError, LastSlideError, ValidationError, atomicWrite, readFileWithHash } from "./writer.js";
 
@@ -402,18 +403,13 @@ async function updateManifest(deck, oldSource, newSource) {
 }
 
 /**
- * Writes a SlideDraft back to its file, changing only the fields that differ. Fields are
- * updated where they were found; new ones become directive comments. A type that came from
- * the filename renames the file and updates the manifest. `baseHash` is the hash readSlide
- * returned; a different file on disk throws FileConflictError.
- * Returns `{ slideId, hashes }` with hashes keyed by path inside the deck.
+ * The file text a draft would produce, without writing: `{ found, next, text, current, locations }`.
+ * Throws ValidationError for an invalid draft, an unknown template, or `---` in a single-file slide.
  */
-export async function updateSlide(deckPath, slideId, draft, baseHash) {
+async function draftedText(deckPath, slideId, draft) {
   const next = normalizeDraft(draft);
   const found = await locate(deckPath, slideId);
-  if (found.hash !== baseHash) throw new FileConflictError(found.file, found.hash);
   const { deck } = found;
-
   if (next.template) {
     const templates = await deckTemplates(deck);
     if (!lookupTemplate(next.template, templates).found) {
@@ -423,11 +419,45 @@ export async function updateSlide(deckPath, slideId, draft, baseHash) {
   if (deck.single && /^\s*---\s*$/m.test(next.markdown)) {
     throw new ValidationError("A line with only --- starts a new slide in a single-file deck.", { fields: [{ path: "markdown", message: "Remove the --- line." }], field: "markdown" });
   }
-
   const parsed = parseSlideText(found.slideText, { frontmatter: !deck.single });
   const { draft: current, locations } = draftFrom(parsed, found.source);
   const slideText = applyDraft(parsed, current, locations, next, { single: deck.single });
   const text = found.text.slice(0, found.span[0]) + slideText + found.text.slice(found.span[1]);
+  return { found, next, text, current, locations };
+}
+
+/**
+ * Loads a deck the way Studio needs it: blueprint violations are returned, never thrown, and an
+ * optional unsaved draft (`{ slideId, draft }`) is applied in memory first.
+ * Returns `{ presentation, violations }`.
+ */
+export async function loadPresentation(inputPath, { blueprint = "evaluate", draft = null } = {}) {
+  const overrides = new Map();
+  if (draft) {
+    const { found, next, text, current, locations } = await draftedText(inputPath, draft.slideId, draft.draft);
+    const renamesType = !found.deck.single && locations.type === "filename" && next.type !== current.type;
+    overrides.set(found.file, renamesType ? { text, type: next.type } : { text });
+  }
+  const presentation = await discoverPresentation(inputPath, { blueprint, overrides });
+  const violations = presentation.violations ?? [];
+  delete presentation.violations;
+  return { presentation, violations };
+}
+
+/**
+ * Writes a SlideDraft back to its file, changing only the fields that differ. Fields are
+ * updated where they were found; new ones become directive comments. A type that came from
+ * the filename renames the file and updates the manifest. `baseHash` is the hash readSlide
+ * returned; a different file on disk throws FileConflictError.
+ * Returns `{ slideId, hashes }` with hashes keyed by path inside the deck.
+ */
+export async function updateSlide(deckPath, slideId, draft, baseHash) {
+  // The hash is checked first, so a stale editor always gets FILE_CONFLICT.
+  const stale = await locate(deckPath, slideId);
+  if (stale.hash !== baseHash) throw new FileConflictError(stale.file, stale.hash);
+  const { found, next, text, current, locations } = await draftedText(deckPath, slideId, draft);
+  if (found.hash !== baseHash) throw new FileConflictError(found.file, found.hash);
+  const { deck } = found;
   const roots = [deck.root];
   const key = deck.single ? path.basename(found.file) : found.source;
 

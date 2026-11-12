@@ -147,9 +147,14 @@ function findTitle(markdown) {
   return markdown.match(/^#\s+(.+)$/m)?.[1]?.trim();
 }
 
-export async function loadSingleFile(filePath) {
+/** `options.overrides` maps absolute file paths to `{ text, type? }` read instead of the file (unsaved drafts). */
+function override(options, file) {
+  return options?.overrides?.get(file) ?? null;
+}
+
+export async function loadSingleFile(filePath, options = {}) {
   const absolutePath = path.resolve(filePath);
-  const source = await fs.readFile(absolutePath, "utf8");
+  const source = override(options, absolutePath)?.text ?? (await fs.readFile(absolutePath, "utf8"));
   const parsed = matter(source);
   const chunks = splitSlides(parsed.content);
   if (chunks.length === 0) {
@@ -169,10 +174,10 @@ export async function loadSingleFile(filePath) {
   };
   await applyDeckGroup(deck, parsed.data);
   deck.slides = await Promise.all(chunks.map((chunk, index) => normalizedSlide(chunk, index, root, root, `slide ${index + 1}`, deck.templates)));
-  return applyBlueprint(deck);
+  return applyBlueprint(deck, options);
 }
 
-export async function loadDirectoryProject(projectPath) {
+export async function loadDirectoryProject(projectPath, options = {}) {
   const root = await fs.realpath(path.resolve(projectPath));
   const manifestPath = path.join(root, "presentation.yml");
   const manifestSource = await fs.readFile(manifestPath, "utf8");
@@ -213,13 +218,17 @@ export async function loadDirectoryProject(projectPath) {
     if (realRel.startsWith("..") || path.isAbsolute(realRel)) {
       throw new Error(`Slide path resolves outside the presentation directory: ${relative}`);
     }
-    const markdown = await fs.readFile(real, "utf8");
+    const replaced = override(options, real);
+    const markdown = replaced?.text ?? (await fs.readFile(real, "utf8"));
     const sourceLabel = relative.split(path.sep).join("/");
-    slides.push(await normalizedSlide(markdown, index, root, path.dirname(real), sourceLabel, deck.templates));
+    const slide = await normalizedSlide(markdown, index, root, path.dirname(real), sourceLabel, deck.templates);
+    // A draft that changes a filename type: the file would be renamed on save.
+    if (replaced && replaced.type !== undefined) slide.type = replaced.type;
+    slides.push(slide);
   }
 
   deck.slides = slides;
-  return applyBlueprint(deck);
+  return applyBlueprint(deck, options);
 }
 
 async function applyDeckGroup(deck, meta) {
@@ -238,16 +247,20 @@ async function applyDeckGroup(deck, meta) {
   if (chrome) deck.chrome = chrome;
 }
 
-export async function discoverPresentation(inputPath = ".") {
+/**
+ * Loads a deck. Options (used by Studio): `blueprint: "evaluate"` collects violations on
+ * `deck.violations` instead of throwing BlueprintError; `overrides` replaces file text in memory.
+ */
+export async function discoverPresentation(inputPath = ".", options = {}) {
   const absolute = path.resolve(inputPath);
   const stat = await fs.stat(absolute).catch(() => {
     throw new Error(`Path does not exist: ${absolute}`);
   });
 
   if (stat.isFile()) {
-    if (path.basename(absolute).endsWith(".slide.md")) return finishDeck(await loadSingleFile(absolute));
+    if (path.basename(absolute).endsWith(".slide.md")) return finishDeck(await loadSingleFile(absolute, options));
     if (path.basename(absolute) === "presentation.yml") {
-      return finishDeck(await loadDirectoryProject(path.dirname(absolute)));
+      return finishDeck(await loadDirectoryProject(path.dirname(absolute), options));
     }
     throw new Error(`Unsupported file: ${absolute}. Use a .slide.md file or a directory project.`);
   }
@@ -261,7 +274,7 @@ export async function discoverPresentation(inputPath = ".") {
     // No manifest: try the single-file convention below.
   }
   if (await fs.stat(manifest).then(() => true).catch(() => false)) {
-    return finishDeck(await loadDirectoryProject(absolute));
+    return finishDeck(await loadDirectoryProject(absolute, options));
   }
 
   const entries = await fs.readdir(absolute, { withFileTypes: true });
@@ -272,7 +285,7 @@ export async function discoverPresentation(inputPath = ".") {
   if (!candidate) {
     throw new Error(`No presentation found in ${absolute}. Add a *.slide.md file or presentation.yml.`);
   }
-  return finishDeck(await loadSingleFile(path.join(absolute, candidate)));
+  return finishDeck(await loadSingleFile(path.join(absolute, candidate), options));
 }
 
 async function finishDeck(deck) {

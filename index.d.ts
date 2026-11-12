@@ -209,8 +209,23 @@ export function readPageType(markdown: string, slideNumber: number): { type: str
 export function measureMarkdown(markdown: string): Measured;
 export function loadBlueprint(root: string, extraTemplates?: TemplateMap): Promise<Blueprint | null>;
 export function normalizeBlueprint(parsed: unknown, extraTemplates?: TemplateMap): Blueprint;
+export type ViolationCode = "ORDER" | "MISSING_TYPE" | "TEMPLATE" | "MAX_CHARS" | "MAX_ITEMS" | "REQUIRED" | "NOT_ALLOWED";
+export interface Violation {
+  /** The slide's source (manifest path, or "slide N" in a single file), or "deck". */
+  source: string;
+  code: ViolationCode;
+  /** Exactly the line `flipbook check` prints. */
+  message: string;
+}
 export function evaluateBlueprint(deck: Presentation, blueprint: Blueprint): string[];
-export function applyBlueprint<T extends Presentation>(deck: T): Promise<T>;
+export function evaluateBlueprintDetailed(deck: Presentation, blueprint: Blueprint): Violation[];
+export interface LoadOptions {
+  /** "evaluate" leaves violations on the deck instead of throwing BlueprintError. Default "throw". */
+  blueprint?: "throw" | "evaluate";
+  /** Absolute file path → text read instead of the file (and a type that replaces a filename type). */
+  overrides?: Map<string, { text: string; type?: string | null }>;
+}
+export function applyBlueprint<T extends Presentation>(deck: T, options?: LoadOptions): Promise<T>;
 
 // chrome
 export function parseChrome(value: unknown): Chrome | null;
@@ -278,9 +293,9 @@ export function normalizeGroup(parsed: unknown, key: string): Group;
 // presentation
 export function renderDraftSlide(presentation: Presentation, index: number, draft: SlideDraft): Promise<Slide>;
 export function extractNotes(markdown: string, frontmatterNotes?: unknown): { body: string; notes: string };
-export function loadSingleFile(filePath: string): Promise<Presentation>;
-export function loadDirectoryProject(projectPath: string): Promise<Presentation>;
-export function discoverPresentation(inputPath?: string): Promise<Presentation>;
+export function loadSingleFile(filePath: string, options?: LoadOptions): Promise<Presentation>;
+export function loadDirectoryProject(projectPath: string, options?: LoadOptions): Promise<Presentation>;
+export function discoverPresentation(inputPath?: string, options?: LoadOptions): Promise<Presentation>;
 
 // slides (US-3)
 export interface SlideDraft {
@@ -314,6 +329,14 @@ export function updateSlide(
   draft: SlideDraft,
   baseHash: string
 ): Promise<{ slideId: SlideId; hashes: Record<string, string> }>;
+/**
+ * Loads a deck without throwing BlueprintError, optionally with one unsaved draft applied in
+ * memory. `violations` are the deck's blueprint violations (empty without a blueprint).
+ */
+export function loadPresentation(
+  inputPath: string,
+  options?: { blueprint?: "evaluate"; draft?: { slideId: SlideId; draft: SlideDraft } | null }
+): Promise<{ presentation: Presentation; violations: Violation[] }>;
 /**
  * Structure changes. `baseHash` is the hash of `presentation.yml` (folder decks) or of the
  * single file. Folder reorders change only the manifest order; single-file reorders keep each

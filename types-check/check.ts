@@ -21,6 +21,9 @@ import {
   readSlide,
   updateSlide,
   insertSlide,
+  loadPresentation,
+  type Violation,
+  type ViolationCode,
   removeSlide,
   reorderSlides,
   LastSlideError,
@@ -61,6 +64,9 @@ export async function exercise(): Promise<void> {
   const updated = await updateSlide("decks/talk", "slides/01_cover.slide.md", { ...slide.draft, template: "summary" }, slide.hash);
   const preview: string = await renderSlideDocument(deck, 0, { draft: slide.draft, assetBase: "/files/" });
   void [updated.slideId, preview, slide.locations.template];
+  const loaded = await loadPresentation("decks/talk", { draft: { slideId: "#0", draft: slide.draft } });
+  const codes: ViolationCode[] = loaded.violations.map((item: Violation) => item.code);
+  void [codes, loaded.presentation.slides.length];
   const added = await insertSlide("decks/talk", null, slide.draft, slide.hash);
   const order: { hashes: Record<string, string> } = await reorderSlides("decks/talk", [added.slideId], slide.hash);
   await removeSlide("decks/talk", added.slideId, order.hashes["presentation.yml"]!);
