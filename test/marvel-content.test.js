@@ -10,6 +10,11 @@ import { loadDirectoryProject } from "../src/presentation.js";
 import { renderExportDocument } from "../src/export.js";
 import { PRESETS } from "../src/export.js";
 
+// The fixture is core's built-in library (library/templates, library/themes): an empty
+// FLIPBOOK_HOME keeps the user's own copies of these kits out of the test. node --test runs
+// each file in its own process, so this doesn't leak into other files.
+process.env.FLIPBOOK_HOME = await fs.mkdtemp(path.join(os.tmpdir(), "flipbook-marvel-home-"));
+
 const groups = [
   "marvel_content_character",
   "marvel_content_guide",
