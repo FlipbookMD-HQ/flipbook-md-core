@@ -142,7 +142,7 @@ const { presentation, violations } = await loadPresentation("./decks/my-guide", 
 // violations: [{ source: "slides/02_point.slide.md", code: "MAX_CHARS", message: "slides/02_point.slide.md: visible text is 412 characters; maximum is 250." }]
 ```
 
-Codes: `ORDER`, `MISSING_TYPE`, `TEMPLATE`, `MAX_CHARS`, `MAX_ITEMS`, `REQUIRED`, `NOT_ALLOWED`. A deck's own `blueprint.yml` wins over its group's.
+Codes: `ORDER`, `MISSING_TYPE`, `TEMPLATE`, `MAX_CHARS`, `MAX_ITEMS`, `REQUIRED`, `NOT_ALLOWED`. A deck's own `blueprint.yml` wins over its group's. A slide out of order doesn't hide content violations: every slide of a known type is still checked against its rules.
 
 ### Add, reorder and delete slides
 

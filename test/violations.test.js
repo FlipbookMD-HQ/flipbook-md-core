@@ -103,6 +103,47 @@ test("evaluateBlueprint is evaluateBlueprintDetailed's messages", () => {
   assert.deepEqual(evaluateBlueprint(deck(), blueprint), detailed.map((violation) => violation.message));
 });
 
+test("a sequence violation doesn't hide other slides' content violations", () => {
+  const blueprint = {
+    pages: [
+      { type: "cover", repeat: { min: 1, max: 1 } },
+      { type: "point", repeat: { min: 1, max: 5 }, max_chars: 10 },
+      { type: "end", repeat: { min: 1, max: 1 } }
+    ],
+    types: { cover: { template: "cover" }, point: { max_chars: 100 }, end: { max_chars: 5 } }
+  };
+  const slide = (source, type, markdown, template = null) => ({ source, type, markdown, template, templateExplicit: Boolean(template) });
+  const deck = {
+    slides: [
+      slide("a", "cover", "# Hi"),
+      slide("b", "point", "# Longer than ten"),
+      slide("c", "mystery", "# Unknown type, no content rules"),
+      slide("d", "end", "# Far past five")
+    ]
+  };
+  const violations = evaluateBlueprintDetailed(deck, blueprint);
+  assert.deepEqual(
+    violations.map(({ source, code }) => `${code} ${source}`),
+    // ORDER first; b is placed on the point page (its limit of 10), d only has its type's limit.
+    ["ORDER c", "MAX_CHARS b", "MAX_CHARS d"]
+  );
+  assert.match(violations[1].message, /maximum is 10\./);
+  assert.equal(deck.slides[0].template, "cover", "the blueprint template is still applied");
+
+  const untyped = { slides: [slide("a", "cover", "# Hi"), slide("b", null, "# x"), slide("c", "end", "# Far past five")] };
+  assert.deepEqual(evaluateBlueprintDetailed(untyped, blueprint).map(({ source, code }) => `${code} ${source}`), ["MISSING_TYPE b", "MAX_CHARS c"]);
+});
+
+test("a deck out of order still reports a too-long slide, in the loader, the error and flipbook check", async () => {
+  const deck = await talk({ ...FAILING.ORDER, "slides/05_conclusion.slide.md": LONG });
+  const { violations } = await loadPresentation(deck);
+  assert.deepEqual(violations.map((violation) => violation.code), ["ORDER", "MAX_CHARS"]);
+  assert.equal(violations[1].source, "slides/05_conclusion.slide.md");
+  const messages = violations.map((violation) => violation.message);
+  assert.deepEqual(await thrown(deck), messages);
+  if (cliAvailable) assert.deepEqual(await cliCheck(deck), messages);
+});
+
 test("a deck that ends early reports source deck", async () => {
   const deck = await talk({
     "slides/05_conclusion.slide.md": null,

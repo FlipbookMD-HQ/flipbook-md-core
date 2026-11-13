@@ -278,47 +278,55 @@ const violation = (source, code, message) => ({ source, code, message });
  * Blueprint violations as `{ source, code, message }`. `source` is the slide's source (a manifest
  * path, or "slide N" in a single file), or "deck" when the deck ends early. Applies each blueprint
  * type's template to slides that don't set one, like the loader does.
+ *
+ * Sequence violations (ORDER, MISSING_TYPE) come first. Every slide whose type the blueprint
+ * defines is then checked against its rules, even when the sequence failed: slides the closest
+ * match placed on a page use that page's limits, the others their type's.
  */
 export function evaluateBlueprintDetailed(deck, blueprint) {
   const sequence = matchPages(deck.slides, blueprint.pages);
-  if (!sequence.ok) return sequence.violations;
-  const violations = [];
-  for (const { slide, step } of sequence.pairs) {
-    const rules = blueprint.types[slide.type];
-    if (rules.template) {
-      if (slide.templateExplicit && slide.template !== rules.template) {
-        violations.push(violation(slide.source, "TEMPLATE", `${slide.source}: template is ${slide.template}; blueprint type ${slide.type} requires ${rules.template}.`));
-      } else if (!slide.templateExplicit) {
-        slide.template = rules.template;
-      }
-    }
-    const maxChars = step.max_chars ?? rules.max_chars;
-    const allow = step.allow ?? rules.allow;
-    const forbid = step.forbid ?? rules.forbid;
-    const maxItems = step.max_items ?? rules.max_items;
-    const require = step.require ?? rules.require;
-    const measured = measureMarkdown(slide.markdown ?? "");
-    if (maxChars != null && measured.chars > maxChars) {
-      violations.push(violation(slide.source, "MAX_CHARS", `${slide.source}: visible text is ${measured.chars} characters; maximum is ${maxChars}.`));
-    }
-    if (maxItems != null && measured.items > maxItems) {
-      violations.push(violation(slide.source, "MAX_ITEMS", `${slide.source}: lists have ${measured.items} items; maximum is ${maxItems}.`));
-    }
-    for (const kind of require ?? []) {
-      if (!measured.kinds.includes(kind)) violations.push(violation(slide.source, "REQUIRED", `${slide.source}: ${kind} is required.`));
-    }
-    for (const kind of measured.kinds) {
-      if ((allow && !allow.includes(kind)) || (forbid && forbid.includes(kind))) {
-        violations.push(violation(slide.source, "NOT_ALLOWED", `${slide.source}: ${kind} is not allowed.`));
-      }
-    }
+  const violations = sequence.ok ? [] : [...sequence.violations];
+  const steps = new Map(sequence.pairs.map(({ slide, step }) => [slide, step]));
+  for (const slide of deck.slides) {
+    const rules = slide.type && Object.hasOwn(blueprint.types, slide.type) ? blueprint.types[slide.type] : null;
+    if (rules) checkSlide(slide, steps.get(slide) ?? {}, rules, violations);
   }
   return violations;
 }
 
+function checkSlide(slide, step, rules, violations) {
+  if (rules.template) {
+    if (slide.templateExplicit && slide.template !== rules.template) {
+      violations.push(violation(slide.source, "TEMPLATE", `${slide.source}: template is ${slide.template}; blueprint type ${slide.type} requires ${rules.template}.`));
+    } else if (!slide.templateExplicit) {
+      slide.template = rules.template;
+    }
+  }
+  const maxChars = step.max_chars ?? rules.max_chars;
+  const allow = step.allow ?? rules.allow;
+  const forbid = step.forbid ?? rules.forbid;
+  const maxItems = step.max_items ?? rules.max_items;
+  const require = step.require ?? rules.require;
+  const measured = measureMarkdown(slide.markdown ?? "");
+  if (maxChars != null && measured.chars > maxChars) {
+    violations.push(violation(slide.source, "MAX_CHARS", `${slide.source}: visible text is ${measured.chars} characters; maximum is ${maxChars}.`));
+  }
+  if (maxItems != null && measured.items > maxItems) {
+    violations.push(violation(slide.source, "MAX_ITEMS", `${slide.source}: lists have ${measured.items} items; maximum is ${maxItems}.`));
+  }
+  for (const kind of require ?? []) {
+    if (!measured.kinds.includes(kind)) violations.push(violation(slide.source, "REQUIRED", `${slide.source}: ${kind} is required.`));
+  }
+  for (const kind of measured.kinds) {
+    if ((allow && !allow.includes(kind)) || (forbid && forbid.includes(kind))) {
+      violations.push(violation(slide.source, "NOT_ALLOWED", `${slide.source}: ${kind} is not allowed.`));
+    }
+  }
+}
+
+/** `{ ok, pairs, violations }`: on failure, `pairs` are the slides the closest match placed. */
 function matchPages(slides, pages) {
-  const result = walk(slides, pages, 0, 0, []);
-  return result.ok ? { ok: true, pairs: result.pairs } : { ok: false, violations: result.violations };
+  return walk(slides, pages, 0, 0, []);
 }
 
 function stepLabel(step) {
@@ -334,6 +342,7 @@ function walk(slides, pages, slideIndex, stepIndex, pairs) {
     if (slideIndex === slides.length) return { ok: true, pairs };
     return {
       ok: false,
+      pairs,
       violations: slides.slice(slideIndex).map((slide) => {
         const found = slide.type ? `type ${slide.type}` : "no page type";
         return violation(slide.source, "ORDER", `${slide.source}: unexpected slide (${found}) after the blueprint pages.`);
@@ -354,14 +363,14 @@ function walk(slides, pages, slideIndex, stepIndex, pairs) {
 
   const here = slides[slideIndex];
   const label = stepLabel(step);
-  if (!here) return { ok: false, violations: [violation("deck", "ORDER", `blueprint.yml: expected ${label} but the deck ended.`)] };
-  if (!here.type) return { ok: false, violations: [violation(here.source, "MISSING_TYPE", `${here.source}: slide has no page type. Expected ${label}.`)] };
+  if (!here) return { ok: false, pairs, violations: [violation("deck", "ORDER", `blueprint.yml: expected ${label} but the deck ended.`)] };
+  if (!here.type) return { ok: false, pairs, violations: [violation(here.source, "MISSING_TYPE", `${here.source}: slide has no page type. Expected ${label}.`)] };
   const run = slides.slice(slideIndex).findIndex((slide) => !slideMatches(slide, step));
   const count = run === -1 ? slides.length - slideIndex : run;
   if (slideMatches(here, step) && count < step.repeat.min) {
-    return { ok: false, violations: [violation(here.source, "ORDER", `${here.source}: expected at least ${step.repeat.min} ${label} slide(s), found ${count}.`)] };
+    return { ok: false, pairs, violations: [violation(here.source, "ORDER", `${here.source}: expected at least ${step.repeat.min} ${label} slide(s), found ${count}.`)] };
   }
-  return { ok: false, violations: [violation(here.source, "ORDER", `${here.source}: expected ${label}, found ${here.type}.`)] };
+  return { ok: false, pairs, violations: [violation(here.source, "ORDER", `${here.source}: expected ${label}, found ${here.type}.`)] };
 }
 
 /**
