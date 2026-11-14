@@ -165,6 +165,27 @@ await removeSlide("./decks/my-guide", added.slideId, hashes["presentation.yml"])
 
 In a single-file deck, slides are `---` chunks: inserting adds a chunk, reordering moves chunks and keeps each one's bytes, and slide IDs (`#0`, `#1`, …) follow the new positions.
 
+### Add and remove deck images
+
+```js
+import { writeDeckAsset, listDeckAssets, assetReferences, removeDeckAsset, loadPresentation } from "@flipbook-md/core";
+
+// PNG, JPEG, GIF, WebP or SVG, up to 8 MB, and the bytes must match the extension (AssetError otherwise).
+// Saved in the deck's assets/ (next to the file for a single-file deck) under a kebab-case name;
+// a taken name gets -2, -3, … — an existing file is never overwritten.
+const { path } = await writeDeckAsset("./decks/my-guide", "Cover Photo.png", bytes); // "assets/cover-photo.png"
+
+const images = await listDeckAssets("./decks/my-guide"); // [{ path, bytes, mime, width, height }]
+
+// Which slides (and the deck's own presentation.css) use which image.
+const { presentation } = await loadPresentation("./decks/my-guide", { blueprint: "evaluate" });
+const uses = await assetReferences(presentation); // [{ source, index, path }]
+
+await removeDeckAsset("./decks/my-guide", path);
+```
+
+AssetError codes: `ASSET_TYPE`, `ASSET_TOO_LARGE`, `ASSET_CONTENT_MISMATCH`, `ASSET_NOT_FOUND`.
+
 Only the package entry is public. Deep imports such as `@flipbook-md/core/src/…` are blocked. Type declarations ship in `index.d.ts`.
 
 The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/uminocelo/flipbook-md#write-a-presentation).

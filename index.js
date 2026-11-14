@@ -1,5 +1,6 @@
 // Public API of @flipbook-md/core. Only this entry is supported; deep imports are blocked
 // by the "exports" map in package.json.
+export * from "./src/assets.js";
 export * from "./src/attachments.js";
 export * from "./src/blueprint.js";
 export * from "./src/chrome.js";
