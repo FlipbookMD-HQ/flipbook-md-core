@@ -517,6 +517,19 @@ export function checkAsset(fileName: string, data: Uint8Array): { ext: string; m
 export function assetsDir(deckPath: string): Promise<string>;
 export function assetBaseName(fileName: string): string;
 export function writeDeckAsset(deckPath: string, fileName: string, data: Uint8Array): Promise<{ path: string; hash: string; bytes: number }>;
+export interface DeckAssetFile {
+  /** Relative to the deck root: "assets/cover.png". */
+  path: string;
+  bytes: number;
+  mime: string;
+  width: number | null;
+  height: number | null;
+}
+export function imageSize(ext: string, data: Uint8Array): { width: number; height: number } | null;
+export function listDeckAssets(deckPath: string): Promise<DeckAssetFile[]>;
+/** Local images a loaded deck uses; `source` "theme" (index null) for the deck's presentation.css. */
+export function assetReferences(presentation: Presentation): Promise<Array<{ source: string; index: number | null; path: string }>>;
+export function removeDeckAsset(deckPath: string, assetPath: string): Promise<void>;
 
 /**
  * Evaluates an unsaved blueprint (YAML text or parsed object) against a loaded presentation.
