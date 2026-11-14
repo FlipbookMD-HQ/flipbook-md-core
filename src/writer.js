@@ -158,3 +158,43 @@ export async function atomicWrite(file, data, { baseHash, roots } = {}) {
   }
   return { hash: hashBytes(typeof data === "string" ? Buffer.from(data, "utf8") : data) };
 }
+
+/**
+ * Creates `file` with `data` only if it does not exist yet: a temp file next to it, fsync, then a
+ * hard link to the final name, which fails atomically when the name is taken. Throws
+ * FileConflictError (with no current hash) in that case; the temp file never stays behind.
+ */
+export async function atomicCreate(file, data, { roots } = {}) {
+  const target = await guardPath(file, roots);
+  const temp = `${target}.${crypto.randomBytes(6).toString("hex")}.flipbook-tmp`;
+  let handle;
+  try {
+    handle = await fs.open(temp, "wx");
+    await handle.writeFile(data);
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await fs.link(temp, target).catch((error) => {
+      throw error.code === "EEXIST" ? new FileConflictError(target, null) : error;
+    });
+  } finally {
+    if (handle) await handle.close().catch(() => {});
+    await fs.rm(temp, { force: true }).catch(() => {});
+  }
+  return { hash: hashBytes(typeof data === "string" ? Buffer.from(data, "utf8") : data) };
+}
+
+/** Deletes `file` after the same root and built-in checks as a write. A symlink is removed, not followed. */
+export async function removeFile(file, { roots } = {}) {
+  const absolute = path.resolve(file);
+  const stat = await fs.lstat(absolute);
+  if (!stat.isFile() && !stat.isSymbolicLink()) throw new ValidationError(`${absolute} is not a file.`, { path: absolute });
+  const parent = await fs.realpath(path.dirname(absolute));
+  const target = path.join(parent, path.basename(absolute));
+  if (within(await realOrSelf(libraryRoot()), target)) throw new BuiltInReadOnlyError(absolute);
+  const realRoots = await Promise.all((roots ?? []).map(realOrSelf));
+  if (!realRoots.some((root) => within(root, target))) {
+    throw new ValidationError(`${absolute} is outside the allowed folders.`, { code: "PATH_OUTSIDE_ROOT", path: absolute });
+  }
+  await fs.unlink(target);
+}
