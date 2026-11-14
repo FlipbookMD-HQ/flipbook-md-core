@@ -498,6 +498,26 @@ export function atomicWrite(
   options: { baseHash: string | null; roots: string[] }
 ): Promise<{ hash: string }>;
 
+/** Creates a file that must not exist yet; FileConflictError (currentHash null) when the name is taken. */
+export function atomicCreate(file: string, data: string | Uint8Array, options: { roots: string[] }): Promise<{ hash: string }>;
+/** Deletes a file inside one of `roots` (a symlink is removed, not followed). */
+export function removeFile(file: string, options: { roots: string[] }): Promise<void>;
+
+// Deck images (US-16).
+export const MAX_ASSET_BYTES: number;
+export const ASSET_TYPES: Readonly<Record<".png" | ".jpg" | ".jpeg" | ".gif" | ".webp" | ".svg", string>>;
+export type AssetErrorCode = "ASSET_TOO_LARGE" | "ASSET_TYPE" | "ASSET_CONTENT_MISMATCH" | "ASSET_NOT_FOUND";
+export class AssetError extends Error {
+  constructor(code: AssetErrorCode, message: string, details?: Record<string, unknown>);
+  code: AssetErrorCode;
+  fileName?: string;
+  path?: string;
+}
+export function checkAsset(fileName: string, data: Uint8Array): { ext: string; mime: string };
+export function assetsDir(deckPath: string): Promise<string>;
+export function assetBaseName(fileName: string): string;
+export function writeDeckAsset(deckPath: string, fileName: string, data: Uint8Array): Promise<{ path: string; hash: string; bytes: number }>;
+
 /**
  * Evaluates an unsaved blueprint (YAML text or parsed object) against a loaded presentation.
  * Never throws: `{ errors }` when the blueprint is invalid, `{ violations }` otherwise.
