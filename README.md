@@ -94,6 +94,21 @@ await writeKit(talk, { patch: { types: { point: { max_chars: 250 } } } }, (await
 await writeKit({ kind: "template", name: "quote", scope: "deck", deckDir }, { patch: { align: "start" } }, hash);
 ```
 
+### Duplicate decks and kits
+
+```js
+import { copyKit, duplicateDeck } from "@flipbook-md/core";
+
+// A sibling copy: every file except dist/, hidden entries and symlinks; only the title changes.
+const { path, skipped } = await duplicateDeck("talks/q3", { name: "q3-dry-run", title: "Q3 (dry run)" });
+console.log(path, skipped); // talks/q3-dry-run [] (skipped lists any symlinks left out)
+
+// Themes, templates and blueprints copy into the library; groups go through copyGroup.
+await copyKit({ kind: "theme", name: "marvel-jarvis" }, "my-theme"); // ~/Documents/flipbook/themes/my-theme.css
+```
+
+A single-file deck is copied to `<name>.slide.md` in the same folder and shares its `assets/`.
+
 ### Copy and rename media kits
 
 ```js

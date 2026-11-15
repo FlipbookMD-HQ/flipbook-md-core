@@ -6,6 +6,7 @@ export * from "./src/blueprint.js";
 export * from "./src/chrome.js";
 export * from "./src/configuration.js";
 export * from "./src/create.js";
+export * from "./src/duplicate.js";
 export * from "./src/export.js";
 export * from "./src/groups.js";
 export * from "./src/import.js";

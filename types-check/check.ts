@@ -25,6 +25,8 @@ import {
   renderExportDocument,
   addSavedTemplate,
   createDeck,
+  duplicateDeck,
+  copyKit,
   importDeck,
   sourceToSlides,
   readSlide,
@@ -89,6 +91,13 @@ export async function exercise(): Promise<void> {
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
   const error = new BlueprintError(["x"]);
   const created: { path: string } = await createDeck("decks", { name: "talk", title: "Talk", kind: "folder", group: null });
+  const duplicated: { path: string; skipped: string[] } = await duplicateDeck(created.path, { name: "talk-copy", title: "Talk (copy)" });
+  void duplicated;
+  const kitCopy = await copyKit({ kind: "theme", name: "marvel-jarvis" }, "my-theme");
+  const copiedScope: "library" | "deck" | "builtin" = kitCopy.ref.scope;
+  void copiedScope;
+  // @ts-expect-error: deck kit files are not copied into the library (D27).
+  await copyKit({ kind: "blueprint", name: "x", scope: "deck" }, "y");
   const mapped = sourceToSlides("# Talk\n\n## Part\n", { title: "talk", images: { "image1.png": "assets/image1.png", "image2.emf": null } });
   const firstSlide: string = mapped.slides[0].markdown;
   void firstSlide;
