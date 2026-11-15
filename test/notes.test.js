@@ -83,8 +83,9 @@ test("serves the announcer and keeps it on the deck's slide", { timeout: 60_000 
   await fs.writeFile(path.join(dir, "configuration.yml"), "presentation:\n  interval: 1\n");
   const deck = await discoverPresentation(dir);
   assert.equal(deck.playback.interval, 1);
-  const instance = await startServer(deck);
+  // Launch first: if Chromium is missing, no server is left open to hang the test file.
   const browser = await chromium.launch({ headless: true });
+  const instance = await startServer(deck);
   try {
     const payload = await fetch(`${instance.url}/api/presentation`).then((response) => response.json());
     assert.equal(payload.playback.interval, 1);

@@ -71,8 +71,9 @@ test("the player animates a slide change, frees browser shortcuts, and stops whe
   await fs.writeFile(path.join(dir, "talk.slide.md"), deckSource);
   await fs.writeFile(path.join(dir, "configuration.yml"), "presentation:\n  interval: 30\n  transition: slide\n  transition_duration: 2\n");
   const deck = await discoverPresentation(dir);
-  const instance = await startServer(deck);
+  // Launch first: if Chromium is missing, no server is left open to hang the test file.
   const browser = await chromium.launch({ headless: true });
+  const instance = await startServer(deck);
   try {
     const payload = await fetch(`${instance.url}/api/presentation`).then((response) => response.json());
     assert.deepEqual(payload.playback.transition, { type: "slide", duration: 2 });
