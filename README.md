@@ -186,6 +186,30 @@ await removeDeckAsset("./decks/my-guide", path);
 
 AssetError codes: `ASSET_TYPE`, `ASSET_TOO_LARGE`, `ASSET_CONTENT_MISMATCH`, `ASSET_NOT_FOUND`.
 
+### Import a document
+
+```js
+import { sourceToSlides, importDeck } from "@flipbook-md/core";
+
+// Pure and deterministic: a slide starts at each # or ## heading and each --- line. The first #
+// (else the frontmatter title, else options.title) is the cover; a short intro (≤ 300 characters)
+// sits on it. A section over 8 list items or 700 visible characters splits into "Title (2)", …
+// Code fences are never split; #### and deeper become bold lines; raw HTML is removed.
+const { title, slides, sections, chars, dropped } = sourceToSlides(markdown, { title: "notes" });
+
+// Writes a folder deck (never a single file): images first, under the writeDeckAsset rules,
+// then slides/NN-<slug>.slide.md and presentation.yml. Nothing is left behind on failure.
+// `fileName` is the href the Markdown uses; images that fail the asset check are dropped and listed.
+const result = await importDeck("./decks", {
+  name: "notes",
+  title: "Meeting notes",
+  group: null, // or a kit name: the deck joins it, and its blueprint reports violations
+  markdown,
+  images: [{ fileName: "image1.png", bytes }]
+});
+// { path, slides, assets: ["assets/image1.png"], dropped: [{ kind, reason, count, detail? }] }
+```
+
 Only the package entry is public. Deep imports such as `@flipbook-md/core/src/…` are blocked. Type declarations ship in `index.d.ts`.
 
 The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/uminocelo/flipbook-md#write-a-presentation).
