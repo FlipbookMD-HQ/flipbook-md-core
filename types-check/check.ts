@@ -25,6 +25,8 @@ import {
   renderExportDocument,
   addSavedTemplate,
   createDeck,
+  importDeck,
+  sourceToSlides,
   readSlide,
   updateSlide,
   insertSlide,
@@ -87,6 +89,14 @@ export async function exercise(): Promise<void> {
   const saved = await addSavedTemplate({ name: "quote", column: 1, row: 2, width: 2, height: 1, align: "start" });
   const error = new BlueprintError(["x"]);
   const created: { path: string } = await createDeck("decks", { name: "talk", title: "Talk", kind: "folder", group: null });
+  const mapped = sourceToSlides("# Talk\n\n## Part\n", { title: "talk", images: { "image1.png": "assets/image1.png", "image2.emf": null } });
+  const firstSlide: string = mapped.slides[0].markdown;
+  void firstSlide;
+  const imported = await importDeck("decks", { name: "notes", title: "Notes", group: null, markdown: "# Notes\n", images: [{ fileName: "image1.png", bytes: new Uint8Array() }] });
+  const droppedKinds: string[] = imported.dropped.map((entry) => entry.kind);
+  void droppedKinds;
+  // @ts-expect-error: importDeck makes folder decks only (D25); there is no kind option.
+  await importDeck("decks", { name: "x", title: "X", markdown: "# X", kind: "single" });
   const read = await readFileWithHash(created.path);
   await atomicWrite(created.path, read.text, { baseHash: read.hash, roots: ["decks"] });
   const slide = await readSlide("decks/talk", "slides/01_cover.slide.md");

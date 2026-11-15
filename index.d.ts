@@ -281,6 +281,41 @@ export interface CreateDeckOptions {
 }
 export function createDeck(dir: string, options: CreateDeckOptions): Promise<{ path: string }>;
 
+// import (US-18, D23, D25)
+export interface DroppedContent {
+  kind: "image" | "html" | "linked-image" | "relative-image";
+  reason: "type" | "size" | "limit" | "not-embedded" | "not-uploaded" | "removed";
+  count: number;
+  /** An image format ("EMF") or a dropped href. */
+  detail?: string;
+}
+export interface SourceToSlidesOptions {
+  /** Fallback title when the document has no "#" heading and no frontmatter title. */
+  title?: string;
+  /** Source image href → stored path, or null to drop it silently. Other local images are dropped and counted. */
+  images?: Record<string, string | null>;
+}
+export interface SourceSlides {
+  title: string;
+  slides: Array<{ markdown: string }>;
+  /** Sections after the cover: "#"/"##" headings and "---" breaks with content. */
+  sections: number;
+  chars: number;
+  dropped: DroppedContent[];
+}
+export function sourceToSlides(markdown: string, options?: SourceToSlidesOptions): SourceSlides;
+export interface ImportDeckOptions {
+  /** 1-60 characters: lowercase letters, digits and dashes. */
+  name: string;
+  /** 1-120 characters; the deck title in presentation.yml. */
+  title: string;
+  group?: string | null;
+  markdown: string;
+  /** `fileName` is the href the Markdown uses for the image. */
+  images?: Array<{ fileName: string; bytes: Uint8Array; alt?: string }>;
+}
+export function importDeck(dir: string, options: ImportDeckOptions): Promise<{ path: string; slides: number; assets: string[]; dropped: DroppedContent[] }>;
+
 // configuration
 export function parseTransition(type: unknown, duration: unknown, where: string): Transition;
 export function loadConfiguration(root: string): Promise<Configuration>;
