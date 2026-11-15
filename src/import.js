@@ -143,7 +143,7 @@ function slidesFor(heading, blocks) {
  * source image href to the path it is stored at, or to null to drop it silently.
  */
 export function sourceToSlides(markdown, options = {}) {
-  const source = String(markdown ?? "").replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  const source = String(markdown ?? "").replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   let content = source;
   let frontTitle = null;
   try {
