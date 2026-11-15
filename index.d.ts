@@ -579,6 +579,29 @@ export function renameGroup(ref: { name: string; scope: "library" | "builtin" },
 /** The deck paths (folders or .slide.md files) whose `group:` is `name`. */
 export function findDecksUsingGroup(name: string, deckPaths: string[]): Promise<string[]>;
 
+// duplicate (US-20, D26, D27)
+export interface DuplicateDeckOptions {
+  /** 1-60 lowercase letters, digits or dashes; the copy's folder name or `<name>.slide.md`. */
+  name: string;
+  /** 1-120 characters; the only field that differs from the original. */
+  title: string;
+}
+/**
+ * Duplicates a deck beside itself. Folder decks leave out `dist/`, hidden entries and symlinks
+ * (listed in `skipped`); a single-file deck shares its folder's `assets/`. Throws DeckExistsError,
+ * or ValidationError with code VALIDATION_FAILED, DECK_NOT_FOUND or DECK_LOAD_FAILED.
+ */
+export function duplicateDeck(deckPath: string, options: DuplicateDeckOptions): Promise<{ path: string; skipped: string[] }>;
+/**
+ * Copies a theme, template, blueprint or group into the library as `toName`. Without `scope`, the
+ * library is tried first, then the built-ins. Throws KitNotFoundError, KitExistsError,
+ * KitInvalidError, or ValidationError (bad name, or deck scope).
+ */
+export function copyKit(
+  fromRef: { kind: KitKind; name: string; scope?: "library" | "builtin" },
+  toName: string
+): Promise<{ ref: KitRef; hash: string; path: string; source: string }>;
+
 export function evaluateDraftBlueprint(presentation: Presentation, blueprintSource: string | unknown): { errors: string[]; violations?: undefined } | { violations: Violation[]; errors?: undefined };
 
 // kits
