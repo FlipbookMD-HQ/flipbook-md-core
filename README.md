@@ -2,7 +2,15 @@
 
 The shared library behind [Flipbook MD](https://github.com/uminocelo/flipbook-md). It loads Markdown decks, applies templates, groups, themes and blueprints, serves the slide player, and exports PNG carousels and MP4 videos.
 
-The `flipbook` CLI and Flipbook Studio both build on this package. If you only want to present or export a deck, install the CLI instead:
+It is one of three Flipbook MD projects:
+
+| Project | What it is |
+| --- | --- |
+| [`flipbook-md`](https://github.com/uminocelo/flipbook-md) | The `flipbook` command: present, check and export decks. |
+| `@flipbook-md/core` (this package) | The library both apps build on: loading, rendering, blueprints, export and document import. |
+| Flipbook Studio | A self-hosted editor for the same deck files, with optional AI from a model running on your machine. **Coming soon.** |
+
+If you only want to present or export a deck, install the CLI instead:
 
 ```sh
 npm install -g flipbook-md
