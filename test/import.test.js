@@ -108,7 +108,7 @@ test("an existing single-file deck is read as sections", () => {
 });
 
 test("non-Latin text and a BOM are kept as written", () => {
-  const result = sourceToSlides("﻿# Índices\n\n## Почему\n\n- 索引は速い\n");
+  const result = sourceToSlides("\uFEFF# Índices\n\n## Почему\n\n- 索引は速い\n");
   assert.equal(result.title, "Índices");
   assert.equal(bodies(result)[1], "# Почему\n\n- 索引は速い\n");
 });
