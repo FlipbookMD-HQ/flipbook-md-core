@@ -531,8 +531,9 @@ async function structureBase(deckPath, baseHash) {
 /**
  * A single-file deck as glue and chunk cores: `glue[0] core[0] glue[1] core[1] … glue[n]`.
  * Cores are the chunks without surrounding whitespace; glue holds frontmatter, blank lines and `---`.
+ * Exported so tools can swap one slide's text and keep every other byte (Studio's slide restore).
  */
-function chunkLayout(text) {
+export function chunkLayout(text) {
   const bom = text.startsWith("﻿") ? 1 : 0;
   const cores = chunkSpans(text.slice(bom)).map(([from, to]) => {
     const raw = text.slice(from + bom, to + bom);
@@ -549,7 +550,8 @@ function chunkLayout(text) {
   return { cores: cores.map(([from, to]) => text.slice(from, to)), glue };
 }
 
-function joinLayout({ cores, glue }) {
+/** The inverse of chunkLayout: `joinLayout(chunkLayout(text)) === text`. */
+export function joinLayout({ cores, glue }) {
   return cores.map((core, index) => glue[index] + core).join("") + glue[cores.length];
 }
 
