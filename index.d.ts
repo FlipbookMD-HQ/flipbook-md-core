@@ -447,6 +447,18 @@ export function insertSlide(
 export function removeSlide(deckPath: string, slideId: SlideId, baseHash: string): Promise<{ hashes: Record<string, string> }>;
 /** `slideIds` must be a permutation of the deck's slides, or it throws ValidationError. */
 export function reorderSlides(deckPath: string, slideIds: SlideId[], baseHash: string): Promise<{ hashes: Record<string, string> }>;
+/**
+ * A single-file deck's text as `glue[0] cores[0] glue[1] … cores[n-1] glue[n]`, split the way
+ * the slide writer splits it: `---` lines outside notes comments, after the frontmatter. Cores
+ * are the slides without surrounding whitespace; glue holds the frontmatter, blank lines and `---`.
+ */
+export interface ChunkLayout {
+  cores: string[];
+  glue: string[];
+}
+export function chunkLayout(text: string): ChunkLayout;
+/** The inverse of chunkLayout: `joinLayout(chunkLayout(text)) === text`. */
+export function joinLayout(layout: ChunkLayout): string;
 
 // server
 /**

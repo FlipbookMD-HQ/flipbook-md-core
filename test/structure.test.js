@@ -219,3 +219,15 @@ test("unknown slide IDs and templates are refused", async () => {
   await assert.rejects(insertSlide(deck, null, draft({ template: "nope" }), hash), (error) => error.field === "template");
   assert.equal((await fs.readdir(path.join(deck, "slides"))).length, 3);
 });
+
+test("chunkLayout splits a single-file deck and joinLayout puts every byte back", async () => {
+  const { chunkLayout, joinLayout } = await import("@flipbook-md/core");
+  const text = "﻿---\ntitle: T\n---\n\n# A\n\n<!-- notes:\n---\n-->\n\n---\n\n\n# B\r\n---\n# C\n";
+  const layout = chunkLayout(text);
+  assert.deepEqual(layout.cores, ["# A\n\n<!-- notes:\n---\n-->", "# B", "# C"]);
+  assert.equal(layout.glue.length, layout.cores.length + 1);
+  assert.equal(joinLayout(layout), text);
+  layout.cores[1] = "# Changed";
+  assert.equal(joinLayout(layout), text.replace("# B", "# Changed"));
+  assert.deepEqual(chunkLayout("").cores, []);
+});

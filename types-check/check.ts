@@ -37,6 +37,9 @@ import {
   type ViolationCode,
   removeSlide,
   reorderSlides,
+  chunkLayout,
+  joinLayout,
+  type ChunkLayout,
   LastSlideError,
   renderSlideDocument,
   atomicWrite,
@@ -134,3 +137,7 @@ export async function exercise(): Promise<void> {
   // @ts-expect-error: unknown preset names are not keys of PRESETS.
   void PRESETS.myspace;
 }
+
+const layout: ChunkLayout = chunkLayout("# A\n---\n# B\n");
+const joined: string = joinLayout(layout);
+void joined;
