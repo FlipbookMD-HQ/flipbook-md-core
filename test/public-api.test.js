@@ -39,7 +39,10 @@ test("deep imports outside the exports map are refused", async () => {
 
 test("the packed files include the player and library but no tests or examples", () => {
   const output = execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: root, encoding: "utf8" });
-  const files = JSON.parse(output)[0].files.map((file) => file.path);
+  // npm 11 prints a list of packs; npm 12 prints an object keyed by package name.
+  const parsed = JSON.parse(output);
+  const pack = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+  const files = pack.files.map((file) => file.path);
   assert.ok(files.includes("index.js"));
   assert.ok(files.includes("index.d.ts"));
   assert.ok(files.some((file) => file.startsWith("public/")), "public/ is packed");
