@@ -6,7 +6,7 @@
   "author": "Celo (https://github.com/uminocelo)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uminocelo/flipbook-md-core.git"
+    "url": "git+https://github.com/FlipbookMD-HQ/flipbook-md-core.git"
   },
   "type": "module",
   "main": "./index.js",
