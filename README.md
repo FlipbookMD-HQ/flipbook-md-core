@@ -1,12 +1,12 @@
 # @flipbook-md/core
 
-The shared library behind [Flipbook MD](https://github.com/uminocelo/flipbook-md). It loads Markdown decks, applies templates, groups, themes and blueprints, serves the slide player, and exports PNG carousels and MP4 videos.
+The shared library behind [Flipbook MD](https://github.com/FlipbookMD-HQ/flipbook-md). It loads Markdown decks, applies templates, groups, themes and blueprints, serves the slide player, and exports PNG carousels and MP4 videos.
 
 It is one of three Flipbook MD projects:
 
 | Project | What it is |
 | --- | --- |
-| [`flipbook-md`](https://github.com/uminocelo/flipbook-md) | The `flipbook` command: present, check and export decks. |
+| [`flipbook-md`](https://github.com/FlipbookMD-HQ/flipbook-md) | The `flipbook` command: present, check and export decks. |
 | `@flipbook-md/core` (this package) | The library both apps build on: loading, rendering, blueprints, export and document import. |
 | Flipbook Studio | A self-hosted editor for the same deck files, with optional AI from a model running on your machine. **Coming soon.** |
 
@@ -235,7 +235,7 @@ const result = await importDeck("./decks", {
 
 Only the package entry is public. Deep imports such as `@flipbook-md/core/src/…` are blocked. Type declarations ship in `index.d.ts`.
 
-The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/uminocelo/flipbook-md#write-a-presentation).
+The deck file format (slides, `presentation.yml`, `templates.yml`, `blueprint.yml`, groups and themes) is documented in the [Flipbook MD README](https://github.com/FlipbookMD-HQ/flipbook-md#write-a-presentation).
 
 ## Develop
 
