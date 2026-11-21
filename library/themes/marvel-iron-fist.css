@@ -1,0 +1,162 @@
+/* IRON FIST: K'un-Lun night, jade mist, a gold chi glow. Tuned for 9:16 TikTok posts. */
+:host {
+  --slide-bg: #07110e;
+  --slide-text: #f6f3e8;
+  --slide-muted: #e4ebe5;
+  --slide-accent: #d4af50;
+  --slide-mint: #8ee0b4;
+  --slide-heading: #fff8ea;
+  --slide-line: #3d5a46;
+  --slide-code: #0c1a16;
+  /* Image slot frame colour. */
+  --iron-fist-panel-frame: #d4af50;
+  font-family: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
+  /* CSS-only K'un-Lun backdrop. To use a picture instead, see the note at the end of this file. */
+  background:
+    radial-gradient(ellipse 70% 30% at 48% 20%, #c9a24a3d, transparent 70%),
+    radial-gradient(ellipse 60% 30% at 12% 44%, #1f6b4e47, transparent 72%),
+    radial-gradient(ellipse 60% 22% at 50% 58%, #2a7a5a33, transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1080 1920' preserveAspectRatio='xMidYMid slice'%3E%3Ccircle cx='663' cy='308' r='3' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='192' cy='748' r='1.5' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='176' cy='888' r='3' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='185' cy='1128' r='3' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='253' cy='457' r='1.5' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='452' cy='95' r='2' fill='%238ee0b4' fill-opacity='0.5'/%3E%3Ccircle cx='295' cy='1107' r='1.5' fill='%238ee0b4' fill-opacity='0.7'/%3E%3Ccircle cx='370' cy='211' r='2' fill='%238ee0b4' fill-opacity='0.35'/%3E%3Ccircle cx='128' cy='1155' r='1.5' fill='%23d4af50' fill-opacity='0.5'/%3E%3Ccircle cx='875' cy='1591' r='2.5' fill='%23f6f3e8' fill-opacity='0.7'/%3E%3Ccircle cx='928' cy='740' r='2.5' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='499' cy='167' r='2.5' fill='%23f6f3e8' fill-opacity='0.5'/%3E%3Ccircle cx='919' cy='589' r='1.5' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='856' cy='337' r='2.5' fill='%23d4af50' fill-opacity='0.5'/%3E%3Ccircle cx='863' cy='80' r='1.5' fill='%238ee0b4' fill-opacity='0.5'/%3E%3Ccircle cx='717' cy='1217' r='3' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='191' cy='552' r='3' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='634' cy='1325' r='3' fill='%238ee0b4' fill-opacity='0.7'/%3E%3Ccircle cx='790' cy='1816' r='2.5' fill='%23d4af50' fill-opacity='0.5'/%3E%3Ccircle cx='727' cy='344' r='1.5' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='446' cy='1573' r='2.5' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='507' cy='814' r='3' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='340' cy='919' r='3' fill='%238ee0b4' fill-opacity='0.35'/%3E%3Ccircle cx='881' cy='1769' r='2.5' fill='%23f6f3e8' fill-opacity='0.5'/%3E%3Ccircle cx='779' cy='472' r='2' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='309' cy='475' r='2' fill='%23d4af50' fill-opacity='0.5'/%3E%3Ccircle cx='373' cy='538' r='2.5' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='858' cy='1094' r='2.5' fill='%238ee0b4' fill-opacity='0.35'/%3E%3Ccircle cx='1055' cy='1264' r='1.5' fill='%23f6f3e8' fill-opacity='0.7'/%3E%3Ccircle cx='803' cy='815' r='3' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='986' cy='1299' r='3' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='137' cy='427' r='3' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='696' cy='1230' r='1.5' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='309' cy='1098' r='1.5' fill='%238ee0b4' fill-opacity='0.7'/%3E%3Ccircle cx='52' cy='144' r='2' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='516' cy='711' r='2.5' fill='%23f6f3e8' fill-opacity='0.35'/%3E%3Ccircle cx='236' cy='1738' r='3' fill='%23f6f3e8' fill-opacity='0.5'/%3E%3Ccircle cx='990' cy='638' r='1.5' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='701' cy='1516' r='2.5' fill='%23f6f3e8' fill-opacity='0.7'/%3E%3Ccircle cx='330' cy='1057' r='1.5' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='740' cy='300' r='1.5' fill='%238ee0b4' fill-opacity='0.7'/%3E%3Ccircle cx='186' cy='1425' r='2.5' fill='%238ee0b4' fill-opacity='0.35'/%3E%3Ccircle cx='728' cy='1580' r='2' fill='%238ee0b4' fill-opacity='0.7'/%3E%3Ccircle cx='456' cy='1255' r='2' fill='%23d4af50' fill-opacity='0.5'/%3E%3Ccircle cx='464' cy='409' r='3' fill='%238ee0b4' fill-opacity='0.7'/%3E%3Ccircle cx='59' cy='57' r='2.5' fill='%23f6f3e8' fill-opacity='0.5'/%3E%3Ccircle cx='396' cy='1418' r='2.5' fill='%23f6f3e8' fill-opacity='0.7'/%3E%3Ccircle cx='715' cy='746' r='1.5' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='464' cy='962' r='2' fill='%238ee0b4' fill-opacity='0.35'/%3E%3Ccircle cx='988' cy='1278' r='1.5' fill='%23f6f3e8' fill-opacity='0.7'/%3E%3Ccircle cx='704' cy='1637' r='1.5' fill='%23d4af50' fill-opacity='0.5'/%3E%3Ccircle cx='408' cy='979' r='2' fill='%23f6f3e8' fill-opacity='0.7'/%3E%3Ccircle cx='680' cy='177' r='3' fill='%23f6f3e8' fill-opacity='0.5'/%3E%3Ccircle cx='173' cy='1484' r='2' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='56' cy='309' r='3' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='971' cy='1346' r='2.5' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='268' cy='43' r='1.5' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='285' cy='888' r='2' fill='%23d4af50' fill-opacity='0.35'/%3E%3Ccircle cx='515' cy='435' r='2.5' fill='%23d4af50' fill-opacity='0.7'/%3E%3Ccircle cx='667' cy='531' r='3' fill='%23d4af50' fill-opacity='0.35'/%3E%3C/svg%3E") center / cover no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1080 760' preserveAspectRatio='none'%3E%3Cpath fill='%23102c23' fill-opacity='.45' d='M0 170 L120 120 L210 150 L330 40 L440 110 L560 60 L700 130 L800 70 L930 140 L1080 90 V760 H0Z'/%3E%3Cpath fill='%230b2119' fill-opacity='.6' d='M0 260 L90 210 L220 250 L300 160 L420 230 L540 150 L650 240 L760 190 L880 250 L1000 180 L1080 220 V760 H0Z'/%3E%3Cpath fill='%23061510' fill-opacity='.85' d='M0 380 L140 320 L260 360 L380 290 L500 350 L640 300 L760 370 L900 310 L1080 360 V760 H0Z'/%3E%3C/svg%3E") bottom / 100% 40% no-repeat,
+    linear-gradient(180deg, #0b100e 0%, #0b1813 46%, #071410 72%, #030907 100%),
+    #07110e;
+}
+
+:host::after { content: none; }
+
+/* Kicker. The export does not draw <!-- eyebrow: -->, so a short h3 before the
+   title stands in for it: `### Nas HQs` then `# Title`. */
+.eyebrow,
+.slide-body > h3:first-child {
+  margin: 0 0 .7em;
+  color: var(--slide-mint);
+  font-size: .72em;
+  font-weight: 700;
+  letter-spacing: .22em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  text-shadow: 0 2px 16px #000000b3;
+}
+
+h1 {
+  letter-spacing: -.04em;
+  text-wrap: balance;
+  text-shadow: 0 4px 24px #000000b8;
+}
+
+.content[data-layout="poster"] h1 {
+  max-width: 13em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+p,
+li {
+  color: var(--slide-muted);
+  text-shadow: 0 2px 14px #000000b3;
+}
+
+li::marker { color: var(--slide-accent); }
+
+strong { color: var(--slide-accent); }
+
+blockquote,
+.callout {
+  color: var(--slide-text);
+  text-shadow: 0 2px 14px #000000a6;
+}
+
+/* Balance content and list pages in a tall frame: the text block sits in the
+   middle instead of hanging from the top with empty space below. */
+.content[data-layout="content"] .slide-body,
+.content[data-layout="list"] .slide-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 4%;
+}
+
+.content[data-layout="content"] .slide-body > *,
+.content[data-layout="list"] .slide-body > * { flex: 0 0 auto; }
+
+.content[data-layout="content"] .slide-body > :last-child,
+.content[data-layout="list"] .slide-body > :last-child { margin-bottom: 0; }
+
+/* Image slot. An image on a content page renders as a framed panel:
+   `![What it shows](assets/picture.png)` anywhere in the page, usually after the text.
+   The whole picture stays visible; add the title "cover" to fill the panel and crop:
+   `![What it shows](assets/picture.png "cover")`. */
+.content[data-layout="content"] .slide-body p:has(> img) { margin: .9em 0 0; }
+
+.content[data-layout="content"] .slide-body img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  aspect-ratio: 4 / 3;
+  padding: .45em;
+  object-fit: contain;
+  border: 2px solid var(--iron-fist-panel-frame);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 40%, #1f6b4e40, transparent 70%),
+    #07110ed9;
+  box-shadow: 0 0 0 6px #d4af501a, 0 24px 60px #000000a6, inset 0 0 40px #8ee0b41a;
+}
+
+.content[data-layout="content"] .slide-body img[title="cover"] {
+  padding: 0;
+  object-fit: cover;
+}
+
+/* Page counter: bottom-left, away from TikTok's right-hand buttons, whatever corner the kit sets. */
+.page-counter[data-corner="bottom-right"] {
+  right: auto;
+  left: var(--chrome-pad, 7%);
+}
+
+.page-counter[data-corner="top-right"] {
+  right: auto;
+  left: var(--chrome-pad, 7%);
+}
+
+.page-counter[data-corner$="right"] .page-counter-mark { order: 0; }
+.page-counter[data-corner$="right"] .page-counter-line { order: 1; }
+.page-counter[data-corner$="right"] .page-counter-ornament { order: 2; }
+
+.page-counter-mark { color: var(--slide-mint); }
+
+.page-counter-line,
+.chrome-band[data-kind="line"] {
+  border-top-color: var(--slide-accent);
+}
+
+/* 9:16 exports (the tiktok preset): keep text out of TikTok's top bar, right rail
+   and caption dock, and lift the counter above the captions. */
+@media (max-aspect-ratio: 2/3) {
+  :host {
+    padding-top: 150px;
+    padding-right: 140px;
+    padding-left: 110px;
+    padding-bottom: 260px;
+  }
+
+  .page-counter[data-corner^="bottom"] {
+    left: 110px;
+    bottom: 200px;
+  }
+
+  /* Larger type so a short page fills the tall frame. */
+  .content[data-layout="content"],
+  .content[data-layout="list"] { font-size: 42px; }
+
+  .content[data-layout="content"] h1,
+  .content[data-layout="list"] h1 { font-size: 88px; }
+
+  .content[data-layout="content"] .slide-body img { aspect-ratio: auto; height: 520px; }
+}
+
+/* A picture as the backdrop: a built-in style cannot ship image files, so copy this
+   style into the deck as presentation.css and swap the second data: layer in :host
+   (the mountains) for your own file, such as assets/fundo.png with
+   "center / cover no-repeat". Keep the gradients above it so the text stays readable. */

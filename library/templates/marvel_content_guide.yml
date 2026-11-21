@@ -7,6 +7,7 @@ themes:
   - marvel-jarvis
   - marvel-herbie
   - marvel-sentinel
+  - marvel-iron-fist
 chrome:
   counter:
     corner: bottom-left

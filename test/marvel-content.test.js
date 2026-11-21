@@ -56,7 +56,7 @@ test("loads the four marvel content groups", async () => {
     assert.ok(group.templates[`${group.name}_cover`]);
     assert.equal(group.templates[`${group.name}_cover`].role, "cover");
     assert.equal(group.templates[`${group.name}_cover`].layout, "poster");
-    assert.deepEqual(group.themes, ["marvel-ultron", "marvel-jarvis", "marvel-herbie", "marvel-sentinel"]);
+    assert.deepEqual(group.themes, ["marvel-ultron", "marvel-jarvis", "marvel-herbie", "marvel-sentinel", "marvel-iron-fist"]);
     assert.equal(group.chrome.counter.ornament.kind, "glyph");
   }
   const character = loaded[0];
@@ -203,4 +203,32 @@ test("content pages can follow the table of contents in either Marvel set", asyn
   assert.equal(deck.slides[2].template, "marvel_content_item_content");
   assert.match(deck.slides[2].html, /data-callout="learn-more"/);
   assert.match(deck.themeCss, /#1d4e89/);
+}));
+
+test("the iron fist style centers content pages, frames their image and keeps the counter on the left", async () => fixture(async (dir) => {
+  await writeDeck(dir, {
+    group: "marvel_content_item",
+    style: "marvel-iron-fist",
+    slides: {
+      "01_cover.slide.md": "### Kicker\n\n# The book\n\nWhat it is.\n\n![Book](assets/cover.svg)\n",
+      "02_toc.slide.md": "# In this post\n\n- The book\n- Who carries it\n",
+      "03_content.slide.md": "### In the comics\n\n# What it keeps\n\nOne sentence.\n\n![Book](assets/cover.svg \"cover\")\n"
+    }
+  });
+  const deck = await loadDirectoryProject(dir);
+  assert.equal(deck.style, "marvel-iron-fist");
+  assert.match(deck.themeCss, /#d4af50/);
+  assert.match(deck.themeCss, /#8ee0b4/);
+  assert.match(deck.themeCss, /data-layout="content"\] \.slide-body,[^{]*\{[^}]*justify-content: center/);
+  assert.match(deck.themeCss, /\.page-counter\[data-corner="bottom-right"\] \{\s*right: auto;\s*left:/);
+  assert.match(deck.themeCss, /img\[title="cover"\]/);
+  assert.match(deck.themeCss, /\.slide-body > h3:first-child/);
+  assert.doesNotMatch(deck.themeCss, /url\("(?!data:)/, "a built-in style cannot point at deck files");
+  assert.match(deck.slides[2].html, /<h3[^>]*>In the comics<\/h3>/);
+  assert.match(deck.slides[2].html, /<img[^>]*title="cover"/);
+
+  const html = await renderExportDocument(deck, deck.slides[2], 2, PRESETS.tiktok);
+  assert.match(html, /data-layout=\\"content\\"/);
+  assert.match(html, /data-corner=\\"bottom-right\\"/);
+  assert.match(html, /max-aspect-ratio: 2\/3/);
 }));
