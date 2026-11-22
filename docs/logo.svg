@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 240" width="920" height="240" fill="none">
+  <defs>
+    <linearGradient id="corew-bg" x1="0" y1="0" x2="920" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#141820"/>
+      <stop offset="100%" stop-color="#0a0e14"/>
+    </linearGradient>
+    <linearGradient id="corew-slide-back" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f3aa3" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#131e8c" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="corew-slide-mid" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8083ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#494bd6" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="corew-slide-front" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#262a31"/>
+      <stop offset="100%" stop-color="#181c22"/>
+    </linearGradient>
+    <linearGradient id="corew-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c0c1ff"/>
+      <stop offset="55%" stop-color="#8083ff"/>
+      <stop offset="100%" stop-color="#4edea3"/>
+    </linearGradient>
+    <filter id="corew-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#05070b" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+
+  <!-- Full-Bleed Square Banner Background -->
+  <rect width="920" height="240" fill="url(#corew-bg)"/>
+
+  <!-- Left Icon Mark (Frameless, scaled up) -->
+  <g transform="translate(24, 18) scale(1.16)">
+    <g transform="rotate(-14 72 93)">
+      <rect x="28" y="43" width="82" height="90" rx="8" fill="url(#corew-slide-back)" stroke="#8083ff" stroke-opacity="0.4" stroke-width="1.5"/>
+    </g>
+    <g transform="rotate(-6 84 93)" filter="url(#corew-shadow)">
+      <rect x="39" y="42" width="88" height="91" rx="9" fill="url(#corew-slide-mid)" stroke="#c0c1ff" stroke-opacity="0.6" stroke-width="1.5"/>
+    </g>
+    <g filter="url(#corew-shadow)">
+      <rect x="51" y="41" width="95" height="94" rx="10" fill="url(#corew-slide-front)" stroke="url(#corew-accent)" stroke-width="2.5"/>
+      <line x1="52" y1="57" x2="145" y2="57" stroke="#31353c" stroke-width="1.5"/>
+      <circle cx="62" cy="49" r="2" fill="#8083ff"/>
+      <circle cx="69" cy="49" r="2" fill="#4edea3"/>
+      <path d="M64 74V101M64 74L74.5 87.5L85 74M85 74V101" stroke="#dfe2eb" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M99 87.5H125M125 87.5L114 76.5M125 87.5L114 98.5" stroke="#4edea3" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="63" y="116" width="16" height="3.5" rx="1.75" fill="#8083ff"/>
+      <rect x="83" y="116" width="16" height="3.5" rx="1.75" fill="#8083ff" opacity="0.7"/>
+      <rect x="103" y="116" width="16" height="3.5" rx="1.75" fill="#4edea3"/>
+      <polygon points="133,115 136,117.75 133,120.5 130,117.75" fill="#4edea3"/>
+    </g>
+  </g>
+
+  <!-- Wordmark & Metadata -->
+  <g transform="translate(238, 0)">
+    <text x="0" y="108" fill="#dfe2eb" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="56" font-weight="800" letter-spacing="-0.03em">
+      FLIPBOOK <tspan fill="#c0c1ff">CORE</tspan>
+    </text>
+
+    <!-- Package Pill -->
+    <rect x="454" y="66" width="184" height="38" rx="10" fill="#8083ff" fill-opacity="0.18" stroke="#8083ff" stroke-width="1.8"/>
+    <text x="546" y="90" fill="#4edea3" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="15.5" font-weight="700" text-anchor="middle">@flipbook-md/core</text>
+
+    <text x="2" y="152" fill="#c7c4d7" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="18" font-weight="500">
+      Loader · Renderer · <tspan fill="#8083ff">3×3 Templates</tspan> · <tspan fill="#4edea3">Blueprints &amp; Export</tspan>
+    </text>
+
+    <g transform="translate(2, 174)">
+      <rect x="0" y="0" width="108" height="26" rx="5" fill="#1c2026" stroke="#31353c" stroke-width="1.2"/>
+      <text x="54" y="17" fill="#c0c1ff" font-family="'JetBrains Mono', monospace" font-size="11.5" font-weight="600" text-anchor="middle">PLAYER SERVER</text>
+
+      <rect x="118" y="0" width="108" height="26" rx="5" fill="#1c2026" stroke="#31353c" stroke-width="1.2"/>
+      <text x="172" y="17" fill="#c0c1ff" font-family="'JetBrains Mono', monospace" font-size="11.5" font-weight="600" text-anchor="middle">ATOMIC WRITER</text>
+
+      <rect x="236" y="0" width="128" height="26" rx="5" fill="#1c2026" stroke="#31353c" stroke-width="1.2"/>
+      <text x="300" y="17" fill="#4edea3" font-family="'JetBrains Mono', monospace" font-size="11.5" font-weight="600" text-anchor="middle">PNG &amp; MP4 EXPORT</text>
+
+      <line x1="380" y1="13" x2="646" y2="13" stroke="#262a31" stroke-width="2"/>
+    </g>
+  </g>
+</svg>
