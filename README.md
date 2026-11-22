@@ -1,5 +1,7 @@
 # @flipbook-md/core
 
+![Flipbook Core](docs/logo.svg)
+
 The shared library behind [Flipbook MD](https://github.com/FlipbookMD-HQ/flipbook-md). It loads Markdown decks, applies templates, groups, themes and blueprints, serves the slide player, and exports PNG carousels and MP4 videos.
 
 It is one of three Flipbook MD projects:
